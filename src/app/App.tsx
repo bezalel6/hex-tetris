@@ -3,6 +3,7 @@ import {IRefPhaserGame, PhaserGame} from '../game/PhaserGame'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import {defaultSettings, HexSettings} from '@/hex-data/settings'
 
+// @refresh reset
 function App() {
     const phaserRef = useRef<IRefPhaserGame | null>(null)
     const [canMoveSprite, setCanMoveSprite] = useState(true)
