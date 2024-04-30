@@ -3,24 +3,52 @@ import {HexTetris} from '@/game/scenes/HexTetris'
 import {Geom} from 'phaser'
 import Color = Phaser.Display.Color
 
+type ColorC = Color | string
 export type Point = { x: number, y: number };
-
 
 const hexAngles = {
     flat: 0,
     rotated: 30
 }
-type HexStyle = {
+export type HexStyle = {
     border: {
         width: number;
-        color: Color
+        color: ColorC
     }
-    fill: Color
+    fill: ColorC
 }
 export type Angle = keyof typeof hexAngles
 
 export type Hex = Point & {
     angle: Angle
+    style: HexStyle
+}
+const defaultHex: Hex = {
+    x: 0,
+    y: 0,
+    angle: 'flat',
+    style: {
+        border: {
+            width: 1,
+            color: 'black'
+        },
+        fill: 'gray'
+    }
+}
+
+function parseHexProps(hexProps?: Partial<Hex>): Hex {
+    return {
+        ...defaultHex,
+        ...hexProps,
+        style: {
+            ...defaultHex.style,
+            ...hexProps?.style,
+            border: {
+                ...defaultHex.style.border,
+                ...(hexProps?.style?.border || {})
+            }
+        }
+    }
 }
 
 export const createHex: GraphicalComponent<HexTetris, { pos: Point, center: Point }> = (props) => {
