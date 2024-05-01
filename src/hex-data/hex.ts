@@ -51,7 +51,7 @@ function parseHexProps<AdditionalProps = {}>(hexProps: Partial<Hex> & Additional
     }
 }
 
-export const createHex: GraphicalComponent<HexTetris, Partial<Hex>> = (_props) => {
+export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, { points: Phaser.Geom.Point[] }> = (_props) => {
     const props = parseHexProps(_props)
     const {col, row, settings, scene, style} = props
     const {size, xSpacingT, ySpacingT, spacing} = settings
@@ -63,7 +63,7 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>> = (_props) =
     hexagon.lineStyle(style.border.width, style.border.color)
     hexagon.fillStyle(style.fill)
 
-    const points = []
+    const points: Phaser.Geom.Point[] = []
     for (let i = 0; i < 6; i++) {
         let angle = Math.PI / 3 * i - Math.PI / 6
         let pointX = Math.cos(angle) * (size + spacing / 2)
@@ -81,6 +81,7 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>> = (_props) =
     hexagon.fillPoints(polygon.points, true)
     hexagon.strokePoints(polygon.points, true, true)
     hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
-
-    return hexagon // Return the hexagon for group manipulation
+    hexagon['points'] = points
+    hexagon.setData(props)
+    return hexagon as any
 }

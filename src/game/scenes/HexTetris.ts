@@ -6,6 +6,7 @@ import Shape, {Shapes} from '@/hex-data/shape'
 
 
 export class HexTetris extends Scene {
+    board: HexBoard
     private settings: HexSettings = defaultSettings()
 
     constructor() {
@@ -23,7 +24,7 @@ export class HexTetris extends Scene {
         const pos = {x: 100, y: 100}
         const {width, height} = this.sys.scene.game.canvas
 
-        new HexBoard(this)
+        this.board = new HexBoard(this)
 
 
         Shapes.forEach(shape => {

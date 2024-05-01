@@ -7,4 +7,4 @@ export interface GraphicalComponentProps<ActualScene extends Scene> {
     settings: HexSettings
 }
 
-export type GraphicalComponent<ActualScene extends Scene = Scene, AdditionalProps = {}> = (props: GraphicalComponentProps<ActualScene> & AdditionalProps) => Graphics
+export type GraphicalComponent<ActualScene extends Scene = Scene, AdditionalProps = {}, AdditionalReturnProps = {}> = (props: GraphicalComponentProps<ActualScene> & AdditionalProps) => Graphics & AdditionalReturnProps

@@ -6,38 +6,8 @@ import Graphics = Phaser.GameObjects.Graphics
 import Color = Phaser.Display.Color
 
 export type ShapeSettings = {}
-const magic = Math.sqrt(3)
 export type ShapeData = { hexes: Array<Hex>, settings?: Partial<HexSettings> }
 type GlobalShapeHexSettings = Partial<Omit<Hex, 'col' | 'row'> & { x: number, y: number }>
-
-// const magic = 1.5 // Adjust as needed, this is assumed to be a scaling or offset factor
-
-// export const Shapes: { [K: string]: ShapeData } = {
-//     Test: {
-//         hexes: [
-//             {col: 0, row: 0},
-//             {col: 0, row: -2, style: {fill: 0xff00ff}},
-//             {col: magic, row: -1, style: {fill: 0xffffff}},
-//             {col: -magic, row: -1}
-//         ],
-//         settings: {
-//             // xSpacingT: 0.28,
-//             // ySpacingT: 1.47
-//         }
-//     },
-//     Test1: {
-//         hexes: [
-//             {col: 0, row: 0},
-//             {col: 1, row: 0, style: {fill: 0xff00ff}},
-//             {col: 2, row: 0, style: {fill: 0xffffff}},
-//             {col: 0.9 * magic, row: -1} // Applied magic as a multiplier here
-//         ],
-//         settings: {
-//             // xSpacingT: 1.75,
-//             // ySpacingT: 1.75 // Assuming uniform spacing in x and y if not otherwise stated
-//         }
-//     }
-// }
 
 const PrimitiveShapes: { [K: string]: ShapeData } = {
     Shape1: {
@@ -152,29 +122,104 @@ export default class Shape {
     scene: HexTetris
     data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
-    group: Omit<Group, 'getChildren'> & { getChildren: () => Graphics[] }
+    group: Omit<Group, 'getChildren'> & { getChildren: () => (Graphics & { points: Phaser.Geom.Point[] })[] }
+
+    originalPositions: { x: number, y: number }[]
 
     constructor(scene: HexTetris, data: ShapeData, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene
         this.hexesSettings = globalShapeSettings
         this.data = data
         this.group = this.scene.add.group() as any
+        this.originalPositions = []
         const settings = {...scene.getSettings(), ...(data.settings || {})}
-        data.hexes.map(
-            hex =>
-                createHex({scene, settings, ...(this.hexesSettings || {}), ...hex})
-        ).forEach(hex => {
-            this.group.add(hex)
-        })
-        if (globalShapeSettings && globalShapeSettings.x && globalShapeSettings.y)
+        data.hexes.map(hex => createHex({scene, settings, ...(this.hexesSettings || {}), ...hex}))
+            .forEach((hex, index) => {
+                this.group.add(hex)
+                this.originalPositions.push({x: hex.x, y: hex.y})  // Store initial positions
+            })
+
+
+        if (globalShapeSettings && globalShapeSettings.x && globalShapeSettings.y) {
             this.group.incXY(globalShapeSettings.x, globalShapeSettings.y)
+            this.originalPositions.forEach(pos => {
+                pos.x += globalShapeSettings.x
+                pos.y += globalShapeSettings.y
+
+            })
+        }
         this.dragSetup()
+    }
+
+    static checkIntersection(shape1: Shape, shape2: Shape): { hexFromShape1: Hex, hexFromShape2: Hex }[] {
+        const vertices1 = shape1.getVerticesWithHexes()
+        const vertices2 = shape2.getVerticesWithHexes()
+        let intersections = []
+
+        for (let hex1 of vertices1) {
+            for (let hex2 of vertices2) {
+                if (Shape.polygonsIntersect(hex1.vertices, hex2.vertices)) {
+                    intersections.push({hexFromShape1: hex1.hex, hexFromShape2: hex2.hex})
+                }
+            }
+        }
+
+        return intersections
+    }
+
+    static polygonsIntersect(poly1, poly2) {
+        return Shape.intersectHelper(poly1, poly2) && Shape.intersectHelper(poly2, poly1)
+    }
+
+    static intersectHelper(poly1, poly2) {
+        for (let i = 0; i < poly1.length; i++) {
+            const next = (i + 1) % poly1.length
+            const edge = {x: poly1[next].x - poly1[i].x, y: poly1[next].y - poly1[i].y}
+            const axis = {x: -edge.y, y: edge.x}
+            const projection1 = Shape.projectPolygon(axis, poly1)
+            const projection2 = Shape.projectPolygon(axis, poly2)
+            if (!Shape.overlap(projection1, projection2)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    static projectPolygon(axis, poly) {
+        let min = axis.x * poly[0].x + axis.y * poly[0].y
+        let max = min
+        for (let vertex of poly) {
+            const projection = axis.x * vertex.x + axis.y * vertex.y
+            if (projection < min) min = projection
+            if (projection > max) max = projection
+        }
+        return {min, max}
+    }
+
+    static overlap(projection1, projection2) {
+        return projection1.max >= projection2.min && projection2.max >= projection1.min
+    }
+
+    // Method to get vertices for each hex in the group
+    getVerticesWithHexes() {
+        return this.group.getChildren().map(child => {
+            return {
+                vertices: child.points.map(p => ({
+                    x: p.x + child.x,
+                    y: p.y + child.y
+                })),
+                hex: child.data.values
+            }
+        })
+    }
+
+    findHexChild(searchFor: Hex) {
+        return this.group.getChildren().find((hex) => hex.data.values === searchFor)
     }
 
     dragSetup() {
         let dragStartX = 0
         let dragStartY = 0
-
 
         const listener = (pointer) => {
             if (pointer.isDown) {
@@ -182,32 +227,54 @@ export default class Shape {
                 const dy = pointer.y - dragStartY
                 dragStartX = pointer.x
                 dragStartY = pointer.y
-                this.group.incX(dx)
-                this.group.incY(dy)
+                this.group.getChildren().forEach((child, index) => {
+                    child.x += dx
+                    child.y += dy
+                })
+            } else {
+                this.scene.input.removeListener('pointermove', listener)
             }
         }
 
-        this.group.getChildren().forEach(hex => {
+        this.group.getChildren().forEach((hex, index) => {
             hex.on('pointerdown', (pointer) => {
                 dragStartX = pointer.x
                 dragStartY = pointer.y
                 this.scene.input.on('pointermove', listener)
-                this.group.getChildren().forEach(child => {
-                })
             })
-
-            // scene.input.on('pointermove', (pointer) => {
-            //    
-            // })
-
-            this.scene.input.on('pointerup', () => {
+            hex.on('pointerup', e => {
                 this.scene.input.removeListener('pointermove', listener)
-                this.group.getChildren().forEach(child => {
-                    // child.setAlpha(1)
+                if (this.group.getChildren().length > 4) {
+                    console.log('board itself')
+                } else {
+                    const intersection = Shape.checkIntersection(this, this.scene.board.shape)
+                    intersection.forEach(intersection => {
+                        const myHex = this.findHexChild(intersection.hexFromShape1)
+                        const boardHex = this.scene.board.shape.findHexChild(intersection.hexFromShape2)
+
+                        function hexify(hex: Graphics) {
+                            hex.fillStyle(0)
+                            hex.fill()
+                        }
+
+                        hexify(myHex)
+                        hexify(boardHex)
+                    })
+                    console.log({intersection})
+                    return
+                }
+                console.log('pointer up')
+                this.group.getChildren().forEach((child, index) => {
+                    this.scene.tweens.add({
+                        targets: child,
+                        x: this.originalPositions[index].x,
+                        y: this.originalPositions[index].y,
+                        ease: 'Power1',
+                        duration: 200
+                    })
                 })
             })
         })
     }
-
 }
 
