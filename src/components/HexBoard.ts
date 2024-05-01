@@ -70,7 +70,7 @@ export default class HexBoard {
         this.resetHex.forEach(reset => {
             renderHex(reset)
         })
-        this.resetHex = []
+        this.resetHex.length = 0
 
         if (shape.group.getChildren().length !== intersections.length) return false
         if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
@@ -90,8 +90,19 @@ export default class HexBoard {
      * @param intersections
      */
     tryFittingShape(shape: Shape, intersections: Intersection[]): boolean {
+        this.resetHex.length = 0
+        
         if (shape.group.getChildren().length !== intersections.length) return false
 
+        if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
+
+        intersections.forEach(t => {
+            const hex = this.shape.findHexChild(t.boardShapeHex)
+            t.boardShapeHex.isPopulated = true
+            renderHex(hex, t.intersectingShapeHex.style)
+        })
+
+        return true
     }
 
     getHex(row: number, col: number): Hex | undefined {

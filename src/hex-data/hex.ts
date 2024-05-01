@@ -1,6 +1,7 @@
 import {GraphicalComponent} from '@/utils/component'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import Graphics = Phaser.GameObjects.Graphics
+import Polygon = Phaser.Geom.Polygon
 
 type ColorC = number
 export type Point = { x: number, y: number };
@@ -62,7 +63,7 @@ export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
     // const polygon = new Phaser.Geom.Polygon(hexagon.points)
     hexagon.fillPoints(polygon.points, true)
     hexagon.strokePoints(polygon.points, true, true)
-    return new Phaser.Geom.Polygon(polygon.points)
+    return hexagon.points
 }
 export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, RenderableHex> = (_props) => {
     const props = parseHexProps(_props)
@@ -94,7 +95,7 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, RenderableHe
     // hexagon.fillPoints(polygon.points, true)
     // hexagon.strokePoints(polygon.points, true, true)
     hexagon['points'] = points
-    const polygon = renderHex(hexagon)
+    const polygon = new Polygon(renderHex(hexagon))
     hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
     hexagon.setData(props)
     return hexagon

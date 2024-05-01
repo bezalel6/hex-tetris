@@ -157,48 +157,36 @@ export default class Shape {
 
     static checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
         const intersections: Intersection[] = []
-        const maxIntersections = new Map<Hex, Intersection>()
-        const boardShapeHexes = board.shape.group.getChildren().map(child => ({
-            hex: child.data.values as BoardHex,
-            points: child.points.map(p => ({X: p.x + child.x, Y: p.y + child.y}))
-        }))
+
+        const calculateRadius = (points: Phaser.Geom.Point[]) => {
+            // Assuming the first point is sufficient due to the symmetry of the hex
+            return Math.sqrt(points[0].x * points[0].x + points[0].y * points[0].y) / 2
+        }
+
+        const distance = (x1: number, y1: number, x2: number, y2: number) => {
+            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        }
 
         shape.group.getChildren().forEach(child1 => {
-            const poly1 = child1.points.map(p => ({X: p.x + child1.x, Y: p.y + child1.y}))
-            boardShapeHexes.forEach(({hex, points: poly2}) => {
-                if (boundingBoxIntersects(poly1, poly2)) {
-                    const solution = new Clipper()
-                    solution.AddPath(poly1, PolyType.ptSubject, true)
-                    solution.AddPath(poly2, PolyType.ptClip, true)
-                    const solutionPolygons = []
-                    solution.Execute(ClipType.ctIntersection, solutionPolygons, PolyType.ptSubject, PolyType.ptClip)
-                    if (solutionPolygons.length > 0) {
-                        const area = Math.abs(Clipper.Area(solutionPolygons[0]))
-                        const existingMax = maxIntersections.get(child1.data.values as Hex)
+            const center1 = {x: child1.x, y: child1.y}
+            const radius1 = calculateRadius(child1.points)
 
-                        if (!existingMax || existingMax.area < area) {
-                            maxIntersections.set(child1.data.values as Hex, {
-                                intersectingShapeHex: null,
-                                boardShapeHex: hex,
-                                area: area
-                            })
-                        }
-                    }
+            board.shape.group.getChildren().forEach(child2 => {
+                const center2 = {x: child2.x, y: child2.y}
+                const radius2 = calculateRadius(child2.points)
+
+                if (distance(center1.x, center1.y, center2.x, center2.y) < radius1 + radius2) {
+                    intersections.push({
+                        intersectingShapeHex: child1.data.values as Hex,
+                        boardShapeHex: child2.data.values as BoardHex,
+                        area: Math.PI * Math.pow((radius1 + radius2) / 2, 2) // Approximate overlap area as circle area
+                    })
                 }
-            })
-        })
-
-        maxIntersections.forEach((value, hex1) => {
-            intersections.push({
-                intersectingShapeHex: hex1,
-                boardShapeHex: value.boardShapeHex,
-                area: value.area
             })
         })
 
         return intersections
     }
-
 
     restoreStyle() {
         this.group.getChildren().forEach(
@@ -274,37 +262,33 @@ export default class Shape {
     }
 
     destroy() {
-        setTimeout(() => {
-            this.group.getChildren().forEach(child => {
-                child.destroy(true)
-            })
-        }, 0)
+        this.group.destroy(true, true)
     }
 }
 
-function boundingBoxIntersects(poly1: { X: number, Y: number }[], poly2: { X: number, Y: number }[]): boolean {
-    const getBoundingBox = (polygon: { X: number, Y: number }[]) => {
-        let minX = Infinity
-        let maxX = -Infinity
-        let minY = Infinity
-        let maxY = -Infinity
-
-        polygon.forEach(point => {
-            if (point.X < minX) minX = point.X
-            if (point.X > maxX) maxX = point.X
-            if (point.Y < minY) minY = point.Y
-            if (point.Y > maxY) maxY = point.Y
-        })
-
-        return {minX, maxX, minY, maxY}
-    }
-
-    const box1 = getBoundingBox(poly1)
-    const box2 = getBoundingBox(poly2)
-
-    return box1.maxX >= box2.minX &&
-        box1.minX <= box2.maxX &&
-        box1.maxY >= box2.minY &&
-        box1.minY <= box2.maxY
+// Helper function to calculate the bounding box of a set of points with an offset
+function calculateBoundingBox(points: { x: number, y: number }[], offsetX: number, offsetY: number): {
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number
+} {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+    points.forEach(p => {
+        const x = p.x + offsetX
+        const y = p.y + offsetY
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+    })
+    return {minX, minY, maxX, maxY}
 }
 
+// Bounding box intersection check
+function boundingBoxIntersects(box1, box2) {
+    return !(box2.minX > box1.maxX ||
+        box2.maxX < box1.minX ||
+        box2.minY > box1.maxY ||
+        box2.maxY < box1.minY)
+}
