@@ -170,7 +170,7 @@ export default class Shape {
         ).forEach(hex => {
             this.group.add(hex)
         })
-        if (globalShapeSettings.x && globalShapeSettings.y)
+        if (globalShapeSettings && globalShapeSettings.x && globalShapeSettings.y)
             this.group.incXY(globalShapeSettings.x, globalShapeSettings.y)
         this.dragSetup()
     }

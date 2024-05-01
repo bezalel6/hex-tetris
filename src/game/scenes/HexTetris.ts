@@ -2,6 +2,7 @@ import {Scene} from 'phaser'
 import {EventBus} from '@/game/EventBus'
 import {defaultSettings, HexSettings} from '@/hex-data/settings'
 import Shape, {flipShapes, setRndFillClrs, Shapes} from '@/hex-data/shape'
+import {HexBoard} from '@/components/HexBoard'
 
 
 export class HexTetris extends Scene {
@@ -22,6 +23,9 @@ export class HexTetris extends Scene {
         const pos = {x: 100, y: 100}
         // new Shape(this, Shapes.Test)
         const {width, height} = this.sys.scene.game.canvas
+
+        HexBoard(this)
+
         setRndFillClrs(Shapes)
         Object.values(flipShapes(Shapes)).forEach(shape => {
             new Shape(this, shape as any, pos)
