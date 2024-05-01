@@ -1,6 +1,8 @@
 import {createHex, Hex} from '@/hex-data/hex'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import {HexSettings} from '@/hex-data/settings'
+// @ts-ignore
+import {Clipper, ClipType, PolyType} from 'js-clipper'
 import Group = Phaser.GameObjects.Group
 import Graphics = Phaser.GameObjects.Graphics
 import Color = Phaser.Display.Color
@@ -61,6 +63,7 @@ const PrimitiveShapes: { [K: string]: ShapeData } = {
     }
 }
 setRndFillClrs(PrimitiveShapes)
+
 export const Shapes: ShapeData[] = Object.values(flipShapes(PrimitiveShapes))
 
 function setRndFillClrs(shapes) {
@@ -151,67 +154,45 @@ export default class Shape {
         this.dragSetup()
     }
 
-    static checkIntersection(shape1: Shape, shape2: Shape): { hexFromShape1: Hex, hexFromShape2: Hex }[] {
-        const vertices1 = shape1.getVerticesWithHexes()
-        const vertices2 = shape2.getVerticesWithHexes()
-        let intersections = []
+    static checkIntersection(shape1: Shape, shape2: Shape): { hexFromShape1: Hex, hexFromShape2: Hex, area: number }[] {
+        const intersections: { hexFromShape1: Hex, hexFromShape2: Hex, area: number }[] = []
+        const maxIntersections = new Map<Hex, { hexFromShape2: Hex, area: number }>()
 
-        for (let hex1 of vertices1) {
-            for (let hex2 of vertices2) {
-                if (Shape.polygonsIntersect(hex1.vertices, hex2.vertices)) {
-                    intersections.push({hexFromShape1: hex1.hex, hexFromShape2: hex2.hex})
+        shape1.group.getChildren().forEach(child1 => {
+            shape2.group.getChildren().forEach(child2 => {
+                const solution = new Clipper()
+                const poly1 = child1.points.map(p => ({X: p.x + child1.x, Y: p.y + child1.y}))
+                const poly2 = child2.points.map(p => ({X: p.x + child2.x, Y: p.y + child2.y}))
+                solution.AddPath(poly1, PolyType.ptSubject, true)
+                solution.AddPath(poly2, PolyType.ptClip, true)
+                const solutionPolygons = []
+                solution.Execute(ClipType.ctIntersection, solutionPolygons, PolyType.ptSubject, PolyType.ptClip)
+
+                if (solutionPolygons.length > 0) {
+                    const area = Math.abs(Clipper.Area(solutionPolygons[0]))
+                    const existingMax = maxIntersections.get(child1.data.values as Hex)
+
+                    if (!existingMax || existingMax.area < area) {
+                        maxIntersections.set(child1.data.values as Hex, {
+                            hexFromShape2: child2.data.values as Hex,
+                            area: area
+                        })
+                    }
                 }
-            }
-        }
+            })
+        })
+
+        maxIntersections.forEach((value, hex1) => {
+            intersections.push({
+                hexFromShape1: hex1,
+                hexFromShape2: value.hexFromShape2,
+                area: value.area
+            })
+        })
 
         return intersections
     }
 
-    static polygonsIntersect(poly1, poly2) {
-        return Shape.intersectHelper(poly1, poly2) && Shape.intersectHelper(poly2, poly1)
-    }
-
-    static intersectHelper(poly1, poly2) {
-        for (let i = 0; i < poly1.length; i++) {
-            const next = (i + 1) % poly1.length
-            const edge = {x: poly1[next].x - poly1[i].x, y: poly1[next].y - poly1[i].y}
-            const axis = {x: -edge.y, y: edge.x}
-            const projection1 = Shape.projectPolygon(axis, poly1)
-            const projection2 = Shape.projectPolygon(axis, poly2)
-            if (!Shape.overlap(projection1, projection2)) {
-                return false
-            }
-        }
-        return true
-    }
-
-    static projectPolygon(axis, poly) {
-        let min = axis.x * poly[0].x + axis.y * poly[0].y
-        let max = min
-        for (let vertex of poly) {
-            const projection = axis.x * vertex.x + axis.y * vertex.y
-            if (projection < min) min = projection
-            if (projection > max) max = projection
-        }
-        return {min, max}
-    }
-
-    static overlap(projection1, projection2) {
-        return projection1.max >= projection2.min && projection2.max >= projection1.min
-    }
-
-    // Method to get vertices for each hex in the group
-    getVerticesWithHexes() {
-        return this.group.getChildren().map(child => {
-            return {
-                vertices: child.points.map(p => ({
-                    x: p.x + child.x,
-                    y: p.y + child.y
-                })),
-                hex: child.data.values
-            }
-        })
-    }
 
     findHexChild(searchFor: Hex) {
         return this.group.getChildren().find((hex) => hex.data.values === searchFor)
@@ -252,8 +233,8 @@ export default class Shape {
                         const myHex = this.findHexChild(intersection.hexFromShape1)
                         const boardHex = this.scene.board.shape.findHexChild(intersection.hexFromShape2)
 
-                        function hexify(hex: Graphics) {
-                            hex.fillStyle(0)
+                        function hexify(hex) {
+                            hex.fillStyle(Color.RandomRGB().color)
                             hex.fill()
                         }
 
