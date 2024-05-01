@@ -1,9 +1,7 @@
 import {GraphicalComponent} from '@/utils/component'
 import {HexTetris} from '@/game/scenes/HexTetris'
-import {Geom} from 'phaser'
-import Color = Phaser.Display.Color
 
-type ColorC = Color | string
+type ColorC = number
 export type Point = { x: number, y: number };
 
 const hexAngles = {
@@ -11,32 +9,34 @@ const hexAngles = {
     rotated: 30
 }
 export type HexStyle = {
-    border: {
+    border?: {
         width: number;
         color: ColorC
     }
-    fill: ColorC
+    fill?: ColorC
 }
 export type Angle = keyof typeof hexAngles
 
-export type Hex = Point & {
-    angle: Angle
-    style: HexStyle
+export type Hex = {
+    col: number,
+    row: number,
+    angle?: Angle
+    style?: HexStyle
 }
 const defaultHex: Hex = {
-    x: 0,
-    y: 0,
+    col: 0,
+    row: 0,
     angle: 'flat',
     style: {
         border: {
-            width: 1,
-            color: 'black'
+            width: 2,
+            color: 0xffffff
         },
-        fill: 'gray'
+        fill: 0x0000ff
     }
 }
 
-function parseHexProps(hexProps?: Partial<Hex>): Hex {
+function parseHexProps<AdditionalProps = {}>(hexProps: Partial<Hex> & AdditionalProps): Hex & AdditionalProps {
     return {
         ...defaultHex,
         ...hexProps,
@@ -51,38 +51,36 @@ function parseHexProps(hexProps?: Partial<Hex>): Hex {
     }
 }
 
-export const createHex: GraphicalComponent<HexTetris, { pos: Point, center: Point }> = (props) => {
-    const {x, y} = {
-        x: props.center.x + props.pos.x * (props.settings.size * props.settings.xSpacingT + props.settings.spacing),
-        y: props.center.y + props.pos.y * (props.settings.size * props.settings.ySpacingT + props.settings.spacing)
-    }
+export const createHex: GraphicalComponent<HexTetris, Partial<Hex>> = (_props) => {
+    const props = parseHexProps(_props)
+    const {col, row, settings, scene, style} = props
+    const {size, xSpacingT, ySpacingT, spacing} = settings
 
-    const hexagon = props.scene.add.graphics({x, y})
-    hexagon.lineStyle(2, 0xffffff)
-    hexagon.fillStyle(0x0000ff)
+    const x = col * (size * xSpacingT + spacing)
+    const y = row * (size * ySpacingT + spacing)
+
+    const hexagon = scene.add.graphics({x, y})
+    hexagon.lineStyle(style.border.width, style.border.color)
+    hexagon.fillStyle(style.fill)
 
     const points = []
     for (let i = 0; i < 6; i++) {
         let angle = Math.PI / 3 * i - Math.PI / 6
-        let pointX = Math.cos(angle) * (props.settings.size + props.settings.spacing / 2)
-        let pointY = Math.sin(angle) * (props.settings.size + props.settings.spacing / 2)
-        points.push(new Geom.Point(pointX, pointY))
+        let pointX = Math.cos(angle) * (size + spacing / 2)
+        let pointY = Math.sin(angle) * (size + spacing / 2)
+        points.push(new Phaser.Geom.Point(pointX, pointY))
     }
-    let hovered = true
-
-
     props.scene.input.on('wheel', (pointer, over, deltaX, deltaY, deltaZ) => {
-        if (hovered) {
-            if (hexagon.angle) hexagon.angle = 0
-            else hexagon.angle = 30
-            console.log('angle', hexagon.angle)
-        }
+        if (hexagon.angle) hexagon.angle = 0
+        else hexagon.angle = 30
+        console.log('angle', hexagon.angle)
     })
-    const polygon = new Geom.Polygon(points)
+    // if (settings.angle)
+    //     hexagon.angle = settings.angle
+    const polygon = new Phaser.Geom.Polygon(points)
     hexagon.fillPoints(polygon.points, true)
     hexagon.strokePoints(polygon.points, true, true)
     hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
-
 
     return hexagon // Return the hexagon for group manipulation
 }

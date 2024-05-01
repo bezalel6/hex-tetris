@@ -35,8 +35,8 @@ function App() {
             <br/>
             <input
                 type="range"
-                min={key === 'size' ? 10 : -10}
-                max={key === 'size' ? 30 : 10}
+                min={-50}
+                max={50}
                 step="0.01"
                 defaultValue={value}
                 onChange={(e) => handleSettingChange(key as keyof HexSettings, Number(e.target.value))}

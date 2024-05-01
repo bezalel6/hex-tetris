@@ -1,7 +1,7 @@
 import {Scene} from 'phaser'
 import {EventBus} from '@/game/EventBus'
 import {defaultSettings, HexSettings} from '@/hex-data/settings'
-import {createHex} from '@/hex-data/hex'
+import Shape, {flipShapes, setRndFillClrs, Shapes} from '@/hex-data/shape'
 
 
 export class HexTetris extends Scene {
@@ -14,14 +14,26 @@ export class HexTetris extends Scene {
     getSettings() {return this.settings}
 
     setSettings(settings: HexSettings) {
-        console.log('setting spacing', settings)
         this.settings = settings
         this.scene.restart()
     }
 
     create() {
-        console.log('creating hex with settings', this.settings)
-        createDraggableShape(this)
+        const pos = {x: 100, y: 100}
+        // new Shape(this, Shapes.Test)
+        const {width, height} = this.sys.scene.game.canvas
+        setRndFillClrs(Shapes)
+        Object.values(flipShapes(Shapes)).forEach(shape => {
+            new Shape(this, shape as any, pos)
+            pos.x += 150
+            if (pos.x >= width - 300) {
+                pos.x = 100
+                pos.y += 150
+            }
+        })
+        console.log({innerWidth})
+        // new Shape(this, Shapes.Shape2, {x: 300, y: 300})
+        // createDraggableShape(this)
         EventBus.emit('current-scene-ready', this)
 
     }
@@ -34,27 +46,28 @@ export class HexTetris extends Scene {
 
 // Creating the entire shape as a draggable group
 const createDraggableShape = (scene: HexTetris) => {
-    const shapePattern = [
-        {x: 0, y: 0},
-        {x: Math.sqrt(3), y: 0},
-        {x: 1, y: 1},
-        {x: 2, y: 2},
-    ]
     // const shapePattern = [
     //     {x: 0, y: 0},
-    //     {x: 0, y: -2},
-    //     {x: Math.sqrt(3), y: -1},
-    //     {x: -Math.sqrt(3), y: -1},
+    //     {x: Math.sqrt(3), y: 0},
+    //     {x: 1, y: 1},
+    //     {x: 2, y: 2},
     // ]
+    const shapePattern = [
+        {x: 0, y: 0},
+        {x: 0, y: -2},
+        {x: Math.sqrt(3), y: -1},
+        {x: -Math.sqrt(3), y: -1},
+    ]
 
     const center = {x: 400, y: 300}
     const group = scene.add.group()
 
-    shapePattern.forEach(pos => {
-        const hex = createHex({scene: scene, pos: pos, center: center, settings: scene.getSettings()})
 
-        group.add(hex)
-    })
+    // shapePattern.forEach(pos => {
+    //     const hex = createHex({scene: scene, pos: pos, center: center, settings: scene.getSettings()})
+    //
+    //     group.add(hex)
+    // })
 
     // group.getChildren().forEach(c => {
     //     c.setInteractive({draggable: true,hitArea:})

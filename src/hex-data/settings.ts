@@ -3,13 +3,15 @@ export interface HexSettings {
     size: number;
     xSpacingT: number;
     ySpacingT: number;
+    angle: number;
 }
 
 export function defaultSettings(): HexSettings {
     return {
         spacing: 0,
         size: 20,
-        xSpacingT: .7,
-        ySpacingT: 3 / 2
+        xSpacingT: 1.75,
+        ySpacingT: 3 / 2,
+        angle: 30
     }
 }
