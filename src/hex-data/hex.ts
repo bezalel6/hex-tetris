@@ -29,7 +29,7 @@ const defaultHex: Hex = {
     angle: 'flat',
     style: {
         border: {
-            width: 2,
+            width: 3,
             color: 0xffffff
         },
         fill: 0x0000ff
