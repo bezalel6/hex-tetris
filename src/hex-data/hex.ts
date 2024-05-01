@@ -1,5 +1,6 @@
 import {GraphicalComponent} from '@/utils/component'
 import {HexTetris} from '@/game/scenes/HexTetris'
+import Graphics = Phaser.GameObjects.Graphics
 
 type ColorC = number
 export type Point = { x: number, y: number };
@@ -10,8 +11,8 @@ const hexAngles = {
 }
 export type HexStyle = {
     border?: {
-        width: number;
-        color: ColorC
+        width?: number;
+        color?: ColorC
     }
     fill?: ColorC
 }
@@ -23,6 +24,8 @@ export type Hex = {
     angle?: Angle
     style?: HexStyle
 }
+export type RenderableHex = Graphics & { points: Phaser.Geom.Point[]; originalStyle: HexStyle }
+
 const defaultHex: Hex = {
     col: 0,
     row: 0,
@@ -51,7 +54,17 @@ function parseHexProps<AdditionalProps = {}>(hexProps: Partial<Hex> & Additional
     }
 }
 
-export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, { points: Phaser.Geom.Point[] }> = (_props) => {
+export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
+    const style = _style ? _style : hexagon.originalStyle
+    hexagon.lineStyle(style.border.width, style.border.color)
+    hexagon.fillStyle(style.fill)
+    const polygon = {points: hexagon.points}
+    // const polygon = new Phaser.Geom.Polygon(hexagon.points)
+    hexagon.fillPoints(polygon.points, true)
+    hexagon.strokePoints(polygon.points, true, true)
+    return new Phaser.Geom.Polygon(polygon.points)
+}
+export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, RenderableHex> = (_props) => {
     const props = parseHexProps(_props)
     const {col, row, settings, scene, style} = props
     const {size, xSpacingT, ySpacingT, spacing} = settings
@@ -59,9 +72,11 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, { points: Ph
     const x = col * (size * xSpacingT + spacing)
     const y = row * (size * ySpacingT + spacing)
 
-    const hexagon = scene.add.graphics({x, y})
-    hexagon.lineStyle(style.border.width, style.border.color)
-    hexagon.fillStyle(style.fill)
+    // @ts-ignore
+    const hexagon: RenderableHex = scene.add.graphics({x, y})
+    hexagon.originalStyle = style
+    // hexagon.lineStyle(style.border.width, style.border.color)
+    // hexagon.fillStyle(style.fill)
 
     const points: Phaser.Geom.Point[] = []
     for (let i = 0; i < 6; i++) {
@@ -75,13 +90,12 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, { points: Ph
         else hexagon.angle = 30
         console.log('angle', hexagon.angle)
     })
-    // if (settings.angle)
-    //     hexagon.angle = settings.angle
-    const polygon = new Phaser.Geom.Polygon(points)
-    hexagon.fillPoints(polygon.points, true)
-    hexagon.strokePoints(polygon.points, true, true)
-    hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
+    // const polygon = new Phaser.Geom.Polygon(points)
+    // hexagon.fillPoints(polygon.points, true)
+    // hexagon.strokePoints(polygon.points, true, true)
     hexagon['points'] = points
+    const polygon = renderHex(hexagon)
+    hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
     hexagon.setData(props)
-    return hexagon as any
+    return hexagon
 }

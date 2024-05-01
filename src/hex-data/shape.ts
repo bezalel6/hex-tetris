@@ -1,16 +1,16 @@
-import {createHex, Hex} from '@/hex-data/hex'
+import {createHex, Hex, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import {HexSettings} from '@/hex-data/settings'
 // @ts-ignore
 import {Clipper, ClipType, PolyType} from 'js-clipper'
+import HexBoard, {BoardHex} from '@/components/HexBoard'
 import Group = Phaser.GameObjects.Group
-import Graphics = Phaser.GameObjects.Graphics
 import Color = Phaser.Display.Color
 
 export type ShapeSettings = {}
 export type ShapeData = { hexes: Array<Hex>, settings?: Partial<HexSettings> }
 type GlobalShapeHexSettings = Partial<Omit<Hex, 'col' | 'row'> & { x: number, y: number }>
-
+export type Intersection = { intersectingShapeHex: Hex, boardShapeHex: BoardHex, area: number }
 const PrimitiveShapes: { [K: string]: ShapeData } = {
     Shape1: {
         hexes: [
@@ -121,11 +121,12 @@ function flipShapes(shapes) {
     return flippedShapes
 }
 
+
 export default class Shape {
     scene: HexTetris
     data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
-    group: Omit<Group, 'getChildren'> & { getChildren: () => (Graphics & { points: Phaser.Geom.Point[] })[] }
+    group: Omit<Group, 'getChildren'> & { getChildren: () => RenderableHex[] }
 
     originalPositions: { x: number, y: number }[]
 
@@ -154,12 +155,12 @@ export default class Shape {
         this.dragSetup()
     }
 
-    static checkIntersection(shape1: Shape, shape2: Shape): { hexFromShape1: Hex, hexFromShape2: Hex, area: number }[] {
-        const intersections: { hexFromShape1: Hex, hexFromShape2: Hex, area: number }[] = []
-        const maxIntersections = new Map<Hex, { hexFromShape2: Hex, area: number }>()
-
-        shape1.group.getChildren().forEach(child1 => {
-            shape2.group.getChildren().forEach(child2 => {
+    static checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
+        const intersections: Intersection[] = []
+        const maxIntersections = new Map<Hex, Intersection>()
+        const boardShape = board.shape
+        shape.group.getChildren().forEach(child1 => {
+            boardShape.group.getChildren().forEach(child2 => {
                 const solution = new Clipper()
                 const poly1 = child1.points.map(p => ({X: p.x + child1.x, Y: p.y + child1.y}))
                 const poly2 = child2.points.map(p => ({X: p.x + child2.x, Y: p.y + child2.y}))
@@ -167,14 +168,14 @@ export default class Shape {
                 solution.AddPath(poly2, PolyType.ptClip, true)
                 const solutionPolygons = []
                 solution.Execute(ClipType.ctIntersection, solutionPolygons, PolyType.ptSubject, PolyType.ptClip)
-
                 if (solutionPolygons.length > 0) {
                     const area = Math.abs(Clipper.Area(solutionPolygons[0]))
                     const existingMax = maxIntersections.get(child1.data.values as Hex)
 
                     if (!existingMax || existingMax.area < area) {
                         maxIntersections.set(child1.data.values as Hex, {
-                            hexFromShape2: child2.data.values as Hex,
+                            intersectingShapeHex: null,
+                            boardShapeHex: child2.data.values as BoardHex,
                             area: area
                         })
                     }
@@ -184,8 +185,8 @@ export default class Shape {
 
         maxIntersections.forEach((value, hex1) => {
             intersections.push({
-                hexFromShape1: hex1,
-                hexFromShape2: value.hexFromShape2,
+                intersectingShapeHex: hex1,
+                boardShapeHex: value.boardShapeHex,
                 area: value.area
             })
         })
@@ -193,6 +194,20 @@ export default class Shape {
         return intersections
     }
 
+    restoreStyle() {
+        this.group.getChildren().forEach(
+            child => {
+                this.updateHexVisual(child, child.originalStyle)
+            }
+        )
+    }
+
+    updateHexVisual(hex: Hex | RenderableHex, newStyle: HexStyle): void {
+        const hexagon = 'points' in hex ? hex : this.findHexChild(hex)
+        if (hexagon) {
+            renderHex(hexagon, newStyle)
+        }
+    }
 
     findHexChild(searchFor: Hex) {
         return this.group.getChildren().find((hex) => hex.data.values === searchFor)
@@ -202,7 +217,8 @@ export default class Shape {
         let dragStartX = 0
         let dragStartY = 0
 
-        const listener = (pointer) => {
+        const pointerMoveCallback = (pointer) => {
+
             if (pointer.isDown) {
                 const dx = pointer.x - dragStartX
                 const dy = pointer.y - dragStartY
@@ -212,8 +228,10 @@ export default class Shape {
                     child.x += dx
                     child.y += dy
                 })
+                const intersection = Shape.checkIntersection(this, this.scene.board)
+                this.scene.board.shapeIntersectingHover(this, intersection)
             } else {
-                this.scene.input.removeListener('pointermove', listener)
+                this.scene.input.removeListener('pointermove', pointerMoveCallback)
             }
         }
 
@@ -221,28 +239,18 @@ export default class Shape {
             hex.on('pointerdown', (pointer) => {
                 dragStartX = pointer.x
                 dragStartY = pointer.y
-                this.scene.input.on('pointermove', listener)
+                this.scene.input.on('pointermove', pointerMoveCallback)
             })
             hex.on('pointerup', e => {
-                this.scene.input.removeListener('pointermove', listener)
+                this.scene.input.removeListener('pointermove', pointerMoveCallback)
                 if (this.group.getChildren().length > 4) {
                     console.log('board itself')
                 } else {
-                    const intersection = Shape.checkIntersection(this, this.scene.board.shape)
-                    intersection.forEach(intersection => {
-                        const myHex = this.findHexChild(intersection.hexFromShape1)
-                        const boardHex = this.scene.board.shape.findHexChild(intersection.hexFromShape2)
-
-                        function hexify(hex) {
-                            hex.fillStyle(Color.RandomRGB().color)
-                            hex.fill()
-                        }
-
-                        hexify(myHex)
-                        hexify(boardHex)
-                    })
-                    console.log({intersection})
-                    return
+                    const intersection = Shape.checkIntersection(this, this.scene.board)
+                    if (this.scene.board.tryFittingShape(this, intersection)) {
+                        this.destroy()
+                        return
+                    }
                 }
                 console.log('pointer up')
                 this.group.getChildren().forEach((child, index) => {
@@ -256,6 +264,14 @@ export default class Shape {
                 })
             })
         })
+    }
+
+    destroy() {
+        setTimeout(() => {
+            this.group.getChildren().forEach(child => {
+                child.destroy(true)
+            })
+        }, 0)
     }
 }
 
