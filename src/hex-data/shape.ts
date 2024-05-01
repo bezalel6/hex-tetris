@@ -39,7 +39,7 @@ type GlobalShapeHexSettings = Partial<Omit<Hex, 'col' | 'row'> & { x: number, y:
 //     }
 // }
 
-export const Shapes: { [K: string]: ShapeData } = {
+const PrimitiveShapes: { [K: string]: ShapeData } = {
     Shape1: {
         hexes: [
             {col: 0, row: 0},
@@ -90,16 +90,21 @@ export const Shapes: { [K: string]: ShapeData } = {
         ]
     }
 }
-export const setRndFillClrs = (shapes) => {
+setRndFillClrs(PrimitiveShapes)
+export const Shapes: ShapeData[] = Object.values(flipShapes(PrimitiveShapes))
+
+function setRndFillClrs(shapes) {
     Object.values(shapes).forEach(rndClr)
 }
-const rndClr = (shape: ShapeData) => {
+
+function rndClr(shape: ShapeData) {
     const clr = Color.RandomRGB()
     shape.hexes.forEach(hex => {
         hex.style = {fill: clr.color}
     })
 }
-export const flipShapes = (shapes) => {
+
+function flipShapes(shapes) {
     const uniqueShapes = new Set()
 
     const normalizeHexes = (hexes) => {
@@ -140,23 +145,14 @@ export const flipShapes = (shapes) => {
     Object.keys(shapes).forEach(key => {
         generateFlips(key, shapes[key].hexes)
     })
-    console.log(flippedShapes)
     return flippedShapes
-}
-
-
-// Helper function to check if two arrays of hexes are equal
-function areArraysEqual(arr1, arr2) {
-    const sortedArr1 = arr1.map(hex => `${hex.col},${hex.row}`).sort()
-    const sortedArr2 = arr2.map(hex => `${hex.col},${hex.row}`).sort()
-    return JSON.stringify(sortedArr1) === JSON.stringify(sortedArr2)
 }
 
 export default class Shape {
     scene: HexTetris
+    data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
     group: Omit<Group, 'getChildren'> & { getChildren: () => Graphics[] }
-    data: ShapeData
 
     constructor(scene: HexTetris, data: ShapeData, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene

@@ -29,9 +29,9 @@ body {
 }
 
 .settings {
-    /*margin-left: 100px;*/
-    width: 400px;
-    margin-right: 300px;
+    position: absolute;
+    left: 10px;
+    width: 200px;
 }
 
 .settings input {

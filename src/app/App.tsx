@@ -47,21 +47,13 @@ function App() {
     // @ts-ignore
     return (
         <div id="app">
-            <PhaserGame ref={phaserRef}
-                        currentActiveScene={(scene) => setCanMoveSprite(scene.scene.key !== 'MainMenu')}/>
             <div>
-                <button className="button" onClick={() => {
-                    if (phaserRef.current.scene)
-                        (phaserRef.current.scene as any).changeScene()
-                }}>Change Scene
-                </button>
-                <div className="spritePosition">Sprite Position:
-                    <pre>{JSON.stringify(spritePosition, null, 2)}</pre>
-                </div>
                 <div className="settings">
                     {settingsControls}
                 </div>
             </div>
+            <PhaserGame ref={phaserRef}
+                        currentActiveScene={(scene) => setCanMoveSprite(scene.scene.key !== 'MainMenu')}/>
         </div>
     )
 }

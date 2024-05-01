@@ -10,7 +10,7 @@ import {HexTetris} from '@/game/scenes/HexTetris'
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
 const config: Phaser.Types.Core.GameConfig = {
     type: AUTO,
-    width: 1024,
+    width: 1400,
     height: 1024,
     parent: 'game-container',
     backgroundColor: '#028af8',
