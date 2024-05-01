@@ -35,7 +35,7 @@ export default class HexBoard {
         const {width, height} = scene.sys.game.canvas
         const center = {x: width / 2 - boardWidth / 2, y: height / 2}
 
-        this.shape = new Shape(scene, {hexes: Array.from(this.hexMap.values())}, center)
+        this.shape = new Shape(scene, {hexes: Array.from(this.hexMap.values())}, false, center)
     }
 
     static key(hex: Hex) {

@@ -28,7 +28,7 @@ export class HexTetris extends Scene {
 
 
         Shapes.forEach(shape => {
-            new Shape(this, shape as any, pos)
+            new Shape(this, shape as any, true, pos)
             pos.x += 150
             if (pos.x >= width - 300) {
                 pos.x = 100

@@ -127,10 +127,9 @@ export default class Shape {
     data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
     group: Omit<Group, 'getChildren'> & { getChildren: () => RenderableHex[] }
-
     originalPositions: { x: number, y: number }[]
 
-    constructor(scene: HexTetris, data: ShapeData, globalShapeSettings?: GlobalShapeHexSettings) {
+    constructor(scene: HexTetris, data: ShapeData, enableDrag = true, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene
         this.hexesSettings = globalShapeSettings
         this.data = data
@@ -152,32 +151,38 @@ export default class Shape {
 
             })
         }
-        this.dragSetup()
+        if (enableDrag)
+            this.dragSetup()
     }
 
     static checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
         const intersections: Intersection[] = []
         const maxIntersections = new Map<Hex, Intersection>()
-        const boardShape = board.shape
-        shape.group.getChildren().forEach(child1 => {
-            boardShape.group.getChildren().forEach(child2 => {
-                const solution = new Clipper()
-                const poly1 = child1.points.map(p => ({X: p.x + child1.x, Y: p.y + child1.y}))
-                const poly2 = child2.points.map(p => ({X: p.x + child2.x, Y: p.y + child2.y}))
-                solution.AddPath(poly1, PolyType.ptSubject, true)
-                solution.AddPath(poly2, PolyType.ptClip, true)
-                const solutionPolygons = []
-                solution.Execute(ClipType.ctIntersection, solutionPolygons, PolyType.ptSubject, PolyType.ptClip)
-                if (solutionPolygons.length > 0) {
-                    const area = Math.abs(Clipper.Area(solutionPolygons[0]))
-                    const existingMax = maxIntersections.get(child1.data.values as Hex)
+        const boardShapeHexes = board.shape.group.getChildren().map(child => ({
+            hex: child.data.values as BoardHex,
+            points: child.points.map(p => ({X: p.x + child.x, Y: p.y + child.y}))
+        }))
 
-                    if (!existingMax || existingMax.area < area) {
-                        maxIntersections.set(child1.data.values as Hex, {
-                            intersectingShapeHex: null,
-                            boardShapeHex: child2.data.values as BoardHex,
-                            area: area
-                        })
+        shape.group.getChildren().forEach(child1 => {
+            const poly1 = child1.points.map(p => ({X: p.x + child1.x, Y: p.y + child1.y}))
+            boardShapeHexes.forEach(({hex, points: poly2}) => {
+                if (boundingBoxIntersects(poly1, poly2)) {
+                    const solution = new Clipper()
+                    solution.AddPath(poly1, PolyType.ptSubject, true)
+                    solution.AddPath(poly2, PolyType.ptClip, true)
+                    const solutionPolygons = []
+                    solution.Execute(ClipType.ctIntersection, solutionPolygons, PolyType.ptSubject, PolyType.ptClip)
+                    if (solutionPolygons.length > 0) {
+                        const area = Math.abs(Clipper.Area(solutionPolygons[0]))
+                        const existingMax = maxIntersections.get(child1.data.values as Hex)
+
+                        if (!existingMax || existingMax.area < area) {
+                            maxIntersections.set(child1.data.values as Hex, {
+                                intersectingShapeHex: null,
+                                boardShapeHex: hex,
+                                area: area
+                            })
+                        }
                     }
                 }
             })
@@ -193,6 +198,7 @@ export default class Shape {
 
         return intersections
     }
+
 
     restoreStyle() {
         this.group.getChildren().forEach(
@@ -218,22 +224,23 @@ export default class Shape {
         let dragStartY = 0
 
         const pointerMoveCallback = (pointer) => {
-
             if (pointer.isDown) {
                 const dx = pointer.x - dragStartX
                 const dy = pointer.y - dragStartY
                 dragStartX = pointer.x
                 dragStartY = pointer.y
-                this.group.getChildren().forEach((child, index) => {
+                this.group.getChildren().forEach((child) => {
                     child.x += dx
                     child.y += dy
                 })
                 const intersection = Shape.checkIntersection(this, this.scene.board)
                 this.scene.board.shapeIntersectingHover(this, intersection)
             } else {
+
                 this.scene.input.removeListener('pointermove', pointerMoveCallback)
             }
         }
+
 
         this.group.getChildren().forEach((hex, index) => {
             hex.on('pointerdown', (pointer) => {
@@ -273,5 +280,31 @@ export default class Shape {
             })
         }, 0)
     }
+}
+
+function boundingBoxIntersects(poly1: { X: number, Y: number }[], poly2: { X: number, Y: number }[]): boolean {
+    const getBoundingBox = (polygon: { X: number, Y: number }[]) => {
+        let minX = Infinity
+        let maxX = -Infinity
+        let minY = Infinity
+        let maxY = -Infinity
+
+        polygon.forEach(point => {
+            if (point.X < minX) minX = point.X
+            if (point.X > maxX) maxX = point.X
+            if (point.Y < minY) minY = point.Y
+            if (point.Y > maxY) maxY = point.Y
+        })
+
+        return {minX, maxX, minY, maxY}
+    }
+
+    const box1 = getBoundingBox(poly1)
+    const box2 = getBoundingBox(poly2)
+
+    return box1.maxX >= box2.minX &&
+        box1.minX <= box2.maxX &&
+        box1.maxY >= box2.minY &&
+        box1.minY <= box2.maxY
 }
 
