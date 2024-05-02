@@ -1,8 +1,6 @@
 import {createHex, Hex, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import {HexSettings} from '@/hex-data/settings'
-// @ts-ignore
-import {Clipper, ClipType, PolyType} from 'js-clipper'
 import HexBoard, {BoardHex} from '@/components/HexBoard'
 import Group = Phaser.GameObjects.Group
 import Color = Phaser.Display.Color
@@ -136,7 +134,17 @@ export default class Shape {
         this.group = this.scene.add.group() as any
         this.originalPositions = []
         const settings = {...scene.getSettings(), ...(data.settings || {})}
-        data.hexes.map(hex => createHex({scene, settings, ...(this.hexesSettings || {}), ...hex}))
+        const hexSettingsObj = this.hexesSettings || {}
+
+        data.hexes.map(hex => {
+                Object.keys(hexSettingsObj).forEach(key => {
+                    if (hex[key] === undefined) {
+                        hex[key] = settings[key]
+                    }
+                })
+                return createHex({scene, settings, hex})
+            }
+        )
             .forEach((hex, index) => {
                 this.group.add(hex)
                 this.originalPositions.push({x: hex.x, y: hex.y})  // Store initial positions

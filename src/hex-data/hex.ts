@@ -40,16 +40,16 @@ const defaultHex: Hex = {
     }
 }
 
-function parseHexProps<AdditionalProps = {}>(hexProps: Partial<Hex> & AdditionalProps): Hex & AdditionalProps {
+function parseHexProps(hexProps: { hex: Partial<Hex> }): Hex {
     return {
         ...defaultHex,
-        ...hexProps,
+        ...hexProps.hex,
         style: {
             ...defaultHex.style,
-            ...hexProps?.style,
+            ...hexProps.hex.style || {},
             border: {
                 ...defaultHex.style.border,
-                ...(hexProps?.style?.border || {})
+                ...(hexProps?.hex.style?.border || {})
             }
         }
     }
@@ -65,9 +65,11 @@ export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
     hexagon.strokePoints(polygon.points, true, true)
     return hexagon.points
 }
-export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, RenderableHex> = (_props) => {
+export const createHex: GraphicalComponent<HexTetris, { hex: Partial<Hex> }, RenderableHex> = (_props) => {
     const props = parseHexProps(_props)
-    const {col, row, settings, scene, style} = props
+
+    const {col, row, style} = props
+    const {settings, scene} = _props
     const {size, xSpacingT, ySpacingT, spacing} = settings
 
     const x = col * (size * xSpacingT + spacing)
@@ -86,7 +88,7 @@ export const createHex: GraphicalComponent<HexTetris, Partial<Hex>, RenderableHe
         let pointY = Math.sin(angle) * (size + spacing / 2)
         points.push(new Phaser.Geom.Point(pointX, pointY))
     }
-    props.scene.input.on('wheel', (pointer, over, deltaX, deltaY, deltaZ) => {
+    scene.input.on('wheel', (pointer, over, deltaX, deltaY, deltaZ) => {
         if (hexagon.angle) hexagon.angle = 0
         else hexagon.angle = 30
         console.log('angle', hexagon.angle)
