@@ -126,6 +126,7 @@ export default class Shape {
     hexesSettings?: GlobalShapeHexSettings
     group: Omit<Group, 'getChildren'> & { getChildren: () => RenderableHex[] }
     originalPositions: { x: number, y: number }[]
+    onDestroy?: () => void  // Optional onDestroy callback property
 
     constructor(scene: HexTetris, data: ShapeData, enableDrag = true, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene
@@ -271,32 +272,6 @@ export default class Shape {
 
     destroy() {
         this.group.destroy(true, true)
+        if (this.onDestroy) {this.onDestroy()}
     }
-}
-
-// Helper function to calculate the bounding box of a set of points with an offset
-function calculateBoundingBox(points: { x: number, y: number }[], offsetX: number, offsetY: number): {
-    minX: number,
-    minY: number,
-    maxX: number,
-    maxY: number
-} {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-    points.forEach(p => {
-        const x = p.x + offsetX
-        const y = p.y + offsetY
-        if (x < minX) minX = x
-        if (x > maxX) maxX = x
-        if (y < minY) minY = y
-        if (y > maxY) maxY = y
-    })
-    return {minX, minY, maxX, maxY}
-}
-
-// Bounding box intersection check
-function boundingBoxIntersects(box1, box2) {
-    return !(box2.minX > box1.maxX ||
-        box2.maxX < box1.minX ||
-        box2.minY > box1.maxY ||
-        box2.maxY < box1.minY)
 }

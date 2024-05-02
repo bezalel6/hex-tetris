@@ -26,17 +26,33 @@ export class HexTetris extends Scene {
         return getRandomElement(Shapes)
     }
 
+    createShape(x: number, y: number) {
+        const shapeData = this.getRndShape()
+        const newShape = new Shape(this, shapeData, true, {x: x, y: y})
+        newShape.onDestroy = () => {
+            console.log('Shape destroyed. Creating a new one.')
+            this.createShape(x, y)
+        }
+        return newShape
+    }
+
     create() {
-        const pos = {x: 100, y: 100}
-        const {width, height} = this.sys.scene.game.canvas
-
-        this.board = new HexBoard(this)
-
+        const {width, height} = this.sys.game.canvas
         const piecesX = width - 200
 
-        new Shape(this, this.getRndShape(), true, {x: piecesX, y: 500})
-        
-        EventBus.emit('current-scene-ready', this)
+        // Create the board
+        this.board = new HexBoard(this)
 
+        // Calculate vertical spacing for shapes
+        const spacingY = height / (numShapes + 1)
+
+        // Distribute shapes evenly on the vertical axis
+        for (let i = 1; i <= numShapes; i++) {
+            const posY = spacingY * i
+            this.createShape(piecesX, posY)
+        }
+
+        // Emit scene ready event
+        EventBus.emit('current-scene-ready', this)
     }
 }
