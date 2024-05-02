@@ -1,6 +1,6 @@
 import Shape, {Intersection} from '@/hex-data/shape'
 import {HexTetris} from '@/game/scenes/HexTetris'
-import {Angle, Hex, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
+import {Angle, Hex, hexPoints, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
 import Color = Phaser.Display.Color
 
 const boardSize = {
@@ -24,6 +24,8 @@ export default class HexBoard {
     constructor(scene: HexTetris) {
         this.scene = scene
         this.hexGrid = []
+
+        hexPoints(scene.getSettings())
 
         this.initializeHexes(0, true) // Initialize top half
         this.initializeHexes(0, false) // Initialize bottom half

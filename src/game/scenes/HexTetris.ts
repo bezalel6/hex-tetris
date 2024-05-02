@@ -40,6 +40,7 @@ export class HexTetris extends Scene {
         const {width, height} = this.sys.game.canvas
         const piecesX = width - 200
 
+
         // Create the board
         this.board = new HexBoard(this)
 

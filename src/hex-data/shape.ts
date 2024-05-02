@@ -1,4 +1,4 @@
-import {createHex, Hex, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
+import {createHex, Hex, hexPoints, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
 import {HexTetris} from '@/game/scenes/HexTetris'
 import {HexSettings} from '@/hex-data/settings'
 import HexBoard, {BoardHex} from '@/components/HexBoard'
@@ -121,6 +121,8 @@ function flipShapes(shapes) {
 
 
 export default class Shape {
+    constPoints = hexPoints()
+    constRadius = this.calculateStaticRadius() // Store the computed radius
     scene: HexTetris
     data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
@@ -164,31 +166,29 @@ export default class Shape {
             this.dragSetup()
     }
 
-    static checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
+    calculateStaticRadius(): number {
+        // Pre-calculate radius using constPoints just once
+        return Math.sqrt((this.constPoints)[0].x ** 2 + (this.constPoints)[0].y ** 2) / 2
+    }
+
+    distance(x1: number, y1: number, x2: number, y2: number): number {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    }
+
+    checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
         const intersections: Intersection[] = []
-
-        const calculateRadius = (points: Phaser.Geom.Point[]) => {
-            // Assuming the first point is sufficient due to the symmetry of the hex
-            return Math.sqrt(points[0].x * points[0].x + points[0].y * points[0].y) / 2
-        }
-
-        const distance = (x1: number, y1: number, x2: number, y2: number) => {
-            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-        }
 
         shape.group.getChildren().forEach(child1 => {
             const center1 = {x: child1.x, y: child1.y}
-            const radius1 = calculateRadius(child1.points)
 
             board.shape.group.getChildren().forEach(child2 => {
                 const center2 = {x: child2.x, y: child2.y}
-                const radius2 = calculateRadius(child2.points)
 
-                if (distance(center1.x, center1.y, center2.x, center2.y) < radius1 + radius2) {
+                if (this.distance(center1.x, center1.y, center2.x, center2.y) < this.constRadius + this.constRadius) {
                     intersections.push({
                         intersectingShapeHex: child1.data.values as Hex,
                         boardShapeHex: child2.data.values as BoardHex,
-                        area: Math.PI * Math.pow((radius1 + radius2) / 2, 2) // Approximate overlap area as circle area
+                        area: Math.PI * Math.pow((this.constRadius + this.constRadius) / 2, 2) // Approximate overlap area as circle area
                     })
                 }
             })
@@ -226,11 +226,12 @@ export default class Shape {
                 const dy = pointer.y - dragStartY
                 dragStartX = pointer.x
                 dragStartY = pointer.y
-                this.group.getChildren().forEach((child) => {
-                    child.x += dx
-                    child.y += dy
-                })
-                const intersection = Shape.checkIntersection(this, this.scene.board)
+                this.group.incXY(dx, dy)
+                // this.group.getChildren().forEach((child) => {
+                //     child.x += dx
+                //     child.y += dy
+                // })
+                const intersection = this.checkIntersection(this, this.scene.board)
                 this.scene.board.shapeIntersectingHover(this, intersection)
             } else {
 
@@ -250,13 +251,12 @@ export default class Shape {
                 if (this.group.getChildren().length > 4) {
                     console.log('board itself')
                 } else {
-                    const intersection = Shape.checkIntersection(this, this.scene.board)
+                    const intersection = this.checkIntersection(this, this.scene.board)
                     if (this.scene.board.tryFittingShape(this, intersection)) {
                         this.destroy()
                         return
                     }
                 }
-                console.log('pointer up')
                 this.group.getChildren().forEach((child, index) => {
                     this.scene.tweens.add({
                         targets: child,
@@ -271,7 +271,22 @@ export default class Shape {
     }
 
     destroy() {
+        // const duration = 300
+        // this.group.getChildren().forEach((child, index) => {
+        //     this.scene.tweens.add({
+        //         targets: child,
+        //         scaleX: 0,
+        //         scaleY: 0,
+        //         alpha: 0,
+        //         ease: 'Expo.easeIn',
+        //         duration: duration
+        //     })
+        // })
+        //
+        // setTimeout(() => {
         this.group.destroy(true, true)
         if (this.onDestroy) {this.onDestroy()}
+        // }, duration)
     }
 }
+

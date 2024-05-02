@@ -55,10 +55,34 @@ function parseHexProps(hexProps: { hex: Partial<Hex> }): Hex {
     }
 }
 
+const areSettingsEqual = (a, b) => {
+    return a.size === b.size && a.spacing === b.spacing
+}
+let cachedSettings: { size: number, spacing: number } = null
+let cachedPoints: { settings: typeof cachedSettings, points: Phaser.Geom.Point[] } = null
+export const hexPoints = (settings = cachedSettings) => {
+    if (!settings)
+        throw new Error('settings were not initialized')
+    const {size, spacing} = settings
+    if (cachedPoints && cachedSettings && areSettingsEqual(cachedSettings, cachedPoints.settings)) {
+        return cachedPoints.points
+    }
+    const points: Phaser.Geom.Point[] = []
+    for (let i = 0; i < 6; i++) {
+        let angle = Math.PI / 3 * i - Math.PI / 6
+        let pointX = Math.cos(angle) * (size + spacing / 2)
+        let pointY = Math.sin(angle) * (size + spacing / 2)
+        points.push(new Phaser.Geom.Point(pointX, pointY))
+    }
+    cachedSettings = settings
+    cachedPoints = {settings: {...settings}, points: [...points]}
+    return points
+}
 export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
     const style = _style ? _style : hexagon.originalStyle
     hexagon.lineStyle(style.border.width, style.border.color)
     hexagon.fillStyle(style.fill)
+
     const polygon = {points: hexagon.points}
     // const polygon = new Phaser.Geom.Polygon(hexagon.points)
     hexagon.fillPoints(polygon.points, true)
@@ -81,13 +105,7 @@ export const createHex: GraphicalComponent<HexTetris, { hex: Partial<Hex> }, Ren
     // hexagon.lineStyle(style.border.width, style.border.color)
     // hexagon.fillStyle(style.fill)
 
-    const points: Phaser.Geom.Point[] = []
-    for (let i = 0; i < 6; i++) {
-        let angle = Math.PI / 3 * i - Math.PI / 6
-        let pointX = Math.cos(angle) * (size + spacing / 2)
-        let pointY = Math.sin(angle) * (size + spacing / 2)
-        points.push(new Phaser.Geom.Point(pointX, pointY))
-    }
+
     scene.input.on('wheel', (pointer, over, deltaX, deltaY, deltaZ) => {
         if (hexagon.angle) hexagon.angle = 0
         else hexagon.angle = 30
@@ -96,7 +114,7 @@ export const createHex: GraphicalComponent<HexTetris, { hex: Partial<Hex> }, Ren
     // const polygon = new Phaser.Geom.Polygon(points)
     // hexagon.fillPoints(polygon.points, true)
     // hexagon.strokePoints(polygon.points, true, true)
-    hexagon['points'] = points
+    hexagon['points'] = hexPoints(settings)
     const polygon = new Polygon(renderHex(hexagon))
     hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)
     hexagon.setData(props)
