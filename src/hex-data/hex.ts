@@ -79,7 +79,8 @@ export const hexPoints = (settings = cachedSettings) => {
     return points
 }
 export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
-    const style = _style ? _style : hexagon.originalStyle
+
+    const style = _style ? {...hexagon.originalStyle, ..._style} : hexagon.originalStyle
     hexagon.lineStyle(style.border.width, style.border.color)
     hexagon.fillStyle(style.fill)
 

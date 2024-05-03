@@ -20,6 +20,7 @@ export default class HexBoard {
     shape: Shape
     hexGrid: BoardHex[][]
     resetHex: RenderableHex[] = []
+    lastHash = ''
 
     constructor(scene: HexTetris) {
         this.scene = scene
@@ -39,7 +40,24 @@ export default class HexBoard {
         const center = {x: width / 2 - boardWidth / 2, y: height / 2}
 
         this.shape = new Shape(scene, {hexes: this.hexGrid.flat()}, false, center)
+        this.checkCompleteLines()
+        this.getCurrentHash(true)
     }
+
+    getCurrentHash(shouldUpdateHash = true) {
+        const hashParts = []
+        this.hexGrid.forEach(row => {
+            row.forEach(c => {
+                hashParts.push(c.isPopulated ? '1' : '0')
+            })
+        })
+        if (shouldUpdateHash) {
+            return this.lastHash = hashParts.join('')
+
+        }
+        return hashParts.join('')
+    }
+
 
     syncBoardIndicies() {
         this.hexGrid.forEach((row, rIndex) => {
@@ -95,56 +113,74 @@ export default class HexBoard {
     }
 
     checkCompleteLines() {
-        const completedRows = this.hexGrid.filter(row => !row.find(c => !c.isPopulated))
+        const currentHash = this.getCurrentHash(false)
+        if (this.lastHash === currentHash) {
+            console.log('hash match')
+            return
+        }
+        const completedLines: BoardHex[][] = []
 
-
-        const check = () => {
-            let t: BoardHex[][] = []
-            console.log(this.hexGrid)
-            for (let c = 0; c < boardSize.w; c++) {
-                const currentRow = []
-                for (let r = 0; r < this.hexGrid.length; r++) {
-                    if (!this.hexGrid[r][c]) continue
-                    if (!this.hexGrid[r][c].isPopulated) break
-                    currentRow.push(this.hexGrid[r][c])
-                }
-                t.push(currentRow)
+        // Check rows
+        this.hexGrid.forEach(row => {
+            if (row.every(hex => hex && hex.isPopulated)) {
+                completedLines.push(row)
             }
+        })
 
-            console.log(t)
-            return t.filter(row => row.length >= 5)
+        // Check "/" diagonals: from each cell in the first row and first cell of each row
+        for (let startCol = 0; startCol < boardSize.w; startCol++) {
+            this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
+        }
+        for (let startRow = 1; startRow < boardSize.h; startRow++) {
+            this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
         }
 
-        let t: BoardHex[] = []
+        // Check "\" diagonals: from each cell in the first row and last cell of each row
+        for (let startCol = 0; startCol < boardSize.w; startCol++) {
+            this.checkDiagonalFromPoint(0, startCol, 1, -1, completedLines)
+        }
+        for (let startRow = 1; startRow < boardSize.h; startRow++) {
+            this.checkDiagonalFromPoint(startRow, boardSize.w - 1, 1, -1, completedLines)
+        }
 
-
-        // for (let r = 0; r < this.hexGrid.length / 2; r++) {
-        //     if (!this.hexGrid[r][0].isPopulated) break
-        //     t.push(this.hexGrid[r][0])
-        // }
-        // if (t.length === 5) completedRows.push([...t])
-        // t.length = 0
-        // for (let r = Math.floor(this.hexGrid.length / 2); r < this.hexGrid.length; r++) {
-        //     if (!this.hexGrid[r][0].isPopulated) break
-        //     t.push(this.hexGrid[r][0])
-        // }
-        // if (t.length === 5) completedRows.push([...t])
-        //
-        // t.length = 0
-        // for (let r = 0; r < this.hexGrid.length / 2; r++) {
-        //     if (!this.hexGrid[r][this.hexGrid[r].length - 1].isPopulated) break
-        //     t.push(this.hexGrid[r][this.hexGrid[r].length - 1])
-        // }
-        // if (t.length === 5) completedRows.push([...t])
-
-        completedRows.push(...check())
-        this.completed(completedRows.flat())
-        // this.hexGrid.forEach((row, rIndex) => {
-        //     row.forEach((hex, cIndex) => {
-        //         hex.actualBoardCoords = {row: rIndex, col: cIndex}
-        //     })
-        // })
+        // Complete all filled lines
+        this.completed(completedLines.flat())
+        this.lastHash = currentHash
     }
+
+// Helper method to check diagonal from a starting point
+    checkDiagonalFromPoint(startRow, startCol, rowIncrement, colIncrement, completedLines) {
+        let diagonal = []
+        let row = startRow
+        let col = startCol
+        while (row < boardSize.h && col >= 0 && col < boardSize.w) {
+            const hex = this.hexGrid[row][col]
+            if (!hex || !hex.isPopulated) {
+                if (diagonal.length > 0) break // Stop if we find a gap after starting the diagonal
+            } else {
+                diagonal.push(hex)
+            }
+            row += rowIncrement
+            col += colIncrement
+        }
+        if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)) {
+            completedLines.push(diagonal)
+        }
+    }
+
+// Helper method to calculate the length of a diagonal
+    calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement) {
+        let length = 0
+        let row = startRow
+        let col = startCol
+        while (row < boardSize.h && col >= 0 && col < boardSize.w) {
+            length++
+            row += rowIncrement
+            col += colIncrement
+        }
+        return length
+    }
+
 
     get(hex: BoardHex) {
         return this.hexGrid[hex.actualBoardCoords.row][hex.actualBoardCoords.col]

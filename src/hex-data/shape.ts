@@ -129,6 +129,10 @@ export default class Shape {
     group: Omit<Group, 'getChildren'> & { getChildren: () => RenderableHex[] }
     originalPositions: { x: number, y: number }[]
     onDestroy?: () => void  // Optional onDestroy callback property
+    hash = {
+        lastChecked: {x: 0, y: 0},
+        intersections: new Array<Intersection>()
+    }
 
     constructor(scene: HexTetris, data: ShapeData, enableDrag = true, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene
@@ -177,7 +181,12 @@ export default class Shape {
 
     checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
         const intersections: Intersection[] = []
-
+        const {x, y} = shape.group.getChildren()[0]
+        const threshold = 20
+        if (Math.abs(this.hash.lastChecked.x - x) <= threshold && Math.abs(this.hash.lastChecked.y - y) <= threshold) {
+            console.log('hash match')
+            return this.hash.intersections
+        }
         shape.group.getChildren().forEach(child1 => {
             const center1 = {x: child1.x, y: child1.y}
 
@@ -193,7 +202,10 @@ export default class Shape {
                 }
             })
         })
-
+        this.hash = {
+            intersections,
+            lastChecked: {x, y}
+        }
         return intersections
     }
 
@@ -220,8 +232,10 @@ export default class Shape {
         let dragStartX = 0
         let dragStartY = 0
 
+
         const pointerMoveCallback = (pointer) => {
             if (pointer.isDown) {
+
                 const dx = pointer.x - dragStartX
                 const dy = pointer.y - dragStartY
                 dragStartX = pointer.x
@@ -234,7 +248,6 @@ export default class Shape {
                 const intersection = this.checkIntersection(this, this.scene.board)
                 this.scene.board.shapeIntersectingHover(this, intersection)
             } else {
-
                 this.scene.input.removeListener('pointermove', pointerMoveCallback)
             }
         }
