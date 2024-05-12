@@ -147,11 +147,11 @@ export default class HexBoard {
             console.log('hash match')
             return
         }
-        this.hexGrid.forEach((row, i) => {
-            row.forEach(r => {
-                this.highlight(r, this.rainbowColors[i])
-            })
-        })
+        // this.hexGrid.forEach((row, i) => {
+        //     row.forEach(r => {
+        //         this.highlight(r, this.rainbowColors[i])
+        //     })
+        // })
 
         // for (let i = 0; i < this.hexGrid.length; i++) {
         //     for (let j = 0; j <; j++) {
@@ -191,19 +191,6 @@ export default class HexBoard {
             }, completedLines)
         }
 
-
-        // for (let startRow = 0; startRow < boardSize.h; startRow++) {
-        //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
-        // }
-        //
-        // // Check "\" diagonals: from each cell in the first row and last cell of each row
-        // for (let startCol = 0; startCol < boardSize.w; startCol++) {
-        //     this.checkDiagonalFromPoint(0, startCol, 1, -1, completedLines)
-        // }
-        // for (let startRow = 0; startRow < boardSize.h; startRow++) {
-        //     this.checkDiagonalFromPoint(startRow, boardSize.w - 1, 1, -1, completedLines)
-        // }
-
         // Complete all filled lines
         this.completed(completedLines.flat())
         this.lastHash = currentHash
@@ -222,18 +209,13 @@ export default class HexBoard {
         let diagonal = []
         let row = startRow
         let col = startCol
-        console.log({rowIncrement, colIncrement})
-        const c = Color.RandomRGB().color
         while (row < boardSize.h && col >= 0 && col < boardSize.w && this.hexGrid[row]) {
             const hex = this.hexGrid[row][col]
-            if (hex) {
-                this.highlight(hex, c)
-            } else {
+            if (!hex) {
                 // debugger
                 // console.log('breaking', {row, col})
                 break
             }
-            console.log({row, col})
             if (!hex || !hex.isPopulated) {
                 if (diagonal.length > 0) break // Stop if we find a gap after starting the diagonal
             } else {
@@ -242,21 +224,22 @@ export default class HexBoard {
             row += row > 4 ? rowIncrement.afterHalf : rowIncrement.beforeHalf
             col += row > 4 ? colIncrement.afterHalf : colIncrement.beforeHalf
         }
-        if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement.beforeHalf, colIncrement.beforeHalf)) {
+        if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)) {
             completedLines.push(diagonal)
         }
     }
 
 // Helper method to calculate the length of a diagonal
-    calculateDiagonalLength(startRow: number, startCol: number, rowIncrement: number, colIncrement: number) {
+    calculateDiagonalLength(startRow: number, startCol: number, rowIncrement: Increment, colIncrement: Increment) {
         let length = 0
         let row = startRow
         let col = startCol
-        if (!rowIncrement && !colIncrement) throw new Error('Infinite loop detected')
         while (row < boardSize.h && col >= 0 && col < boardSize.w) {
             length++
-            row += rowIncrement
-            col += colIncrement
+            row += row > 4 ? rowIncrement.afterHalf : rowIncrement.beforeHalf
+            col += row > 4 ? colIncrement.afterHalf : colIncrement.beforeHalf
+            // row += rowIncrement
+            // col += colIncrement
         }
         console.log({length})
         return length

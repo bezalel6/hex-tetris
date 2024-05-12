@@ -169,7 +169,8 @@ export default class Shape {
         if (!enableDrag)
             this.group.getChildren().forEach(hex => {
                 hex.on('pointermove', () => {
-                    document.getElementById('debug').innerText = JSON.stringify(hex.data.values.actualBoardCoords, null, 2)
+                    const {row, col} = hex.data.values.actualBoardCoords
+                    document.getElementById('debug').innerText = `row: ${row}, col: ${col}`
                 })
             })
         if (enableDrag)
