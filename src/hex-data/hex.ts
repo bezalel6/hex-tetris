@@ -80,9 +80,11 @@ export const hexPoints = (settings = cachedSettings) => {
 }
 export const renderHex = (hexagon: RenderableHex, _style: HexStyle = null) => {
 
+
     const style = _style ? {...hexagon.originalStyle, ..._style} : hexagon.originalStyle
     hexagon.lineStyle(style.border.width, style.border.color)
     hexagon.fillStyle(style.fill)
+
 
     const polygon = {points: hexagon.points}
     // const polygon = new Phaser.Geom.Polygon(hexagon.points)
@@ -103,8 +105,6 @@ export const createHex: GraphicalComponent<HexTetris, { hex: Partial<Hex> }, Ren
     // @ts-ignore
     const hexagon: RenderableHex = scene.add.graphics({x, y})
     hexagon.originalStyle = style
-    // hexagon.lineStyle(style.border.width, style.border.color)
-    // hexagon.fillStyle(style.fill)
 
 
     scene.input.on('wheel', (pointer, over, deltaX, deltaY, deltaZ) => {
@@ -112,9 +112,7 @@ export const createHex: GraphicalComponent<HexTetris, { hex: Partial<Hex> }, Ren
         else hexagon.angle = 30
         console.log('angle', hexagon.angle)
     })
-    // const polygon = new Phaser.Geom.Polygon(points)
-    // hexagon.fillPoints(polygon.points, true)
-    // hexagon.strokePoints(polygon.points, true, true)
+
     hexagon['points'] = hexPoints(settings)
     const polygon = new Polygon(renderHex(hexagon))
     hexagon.setInteractive(polygon, Phaser.Geom.Polygon.Contains)

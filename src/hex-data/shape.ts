@@ -166,6 +166,12 @@ export default class Shape {
 
             })
         }
+        if (!enableDrag)
+            this.group.getChildren().forEach(hex => {
+                hex.on('pointermove', () => {
+                    console.log('\rmove', hex.data.values.actualBoardCoords)
+                })
+            })
         if (enableDrag)
             this.dragSetup()
     }
@@ -259,6 +265,7 @@ export default class Shape {
                 dragStartY = pointer.y
                 this.scene.input.on('pointermove', pointerMoveCallback)
             })
+
             hex.on('pointerup', e => {
                 this.scene.input.removeListener('pointermove', pointerMoveCallback)
                 if (this.group.getChildren().length > 4) {

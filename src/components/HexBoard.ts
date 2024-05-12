@@ -21,6 +21,18 @@ export default class HexBoard {
     hexGrid: BoardHex[][]
     resetHex: RenderableHex[] = []
     lastHash = ''
+    // Define an array of hexadecimal color values for the rainbow colors in decimal form
+    rainbowColors: number[] = [
+        0xE6E6FA, // Lavender (Lighter Violet)
+        0x9400D3, // Violet
+        0x4B0082, // Indigo
+        0x0000FF, // Blue
+        0x00FF00, // Green
+        0xFFFF00, // Yellow
+        0xFF7F00, // Orange
+        0xFF0000, // Red
+        0x8B0000  // Dark Red
+    ]
 
     constructor(scene: HexTetris) {
         this.scene = scene
@@ -40,8 +52,11 @@ export default class HexBoard {
         const center = {x: width / 2 - boardWidth / 2, y: height / 2}
 
         this.shape = new Shape(scene, {hexes: this.hexGrid.flat()}, false, center)
+        this.syncBoardIndicies(true)
+
         this.checkCompleteLines()
         this.getCurrentHash(true)
+        console.log(this.hexGrid)
     }
 
     getCurrentHash(shouldUpdateHash = true) {
@@ -58,11 +73,12 @@ export default class HexBoard {
         return hashParts.join('')
     }
 
-
-    syncBoardIndicies() {
+    syncBoardIndicies(shouldShapeBeDefined = false) {
         this.hexGrid.forEach((row, rIndex) => {
             row.forEach((hex, cIndex) => {
                 hex.actualBoardCoords = {row: rIndex, col: cIndex}
+                if (this.shape || shouldShapeBeDefined)
+                    this.find(hex).data.set(hex)
             })
         })
     }
@@ -84,7 +100,7 @@ export default class HexBoard {
                     angle,
                     isPopulated: false,
                     actualBoardCoords: {
-                        row: this.hexGrid.length,
+                        row: r,
                         col: c
                     }
                 }
@@ -112,12 +128,31 @@ export default class HexBoard {
 
     }
 
+    highlight(hex: BoardHex, clr = Color.RandomRGB().color) {
+        renderHex(this.find(hex), {fill: clr})
+    }
+
     checkCompleteLines() {
         const currentHash = this.getCurrentHash(false)
         if (this.lastHash === currentHash) {
             console.log('hash match')
             return
         }
+        this.hexGrid.forEach((row, i) => {
+            row.forEach(r => {
+                this.highlight(r, this.rainbowColors[i])
+            })
+        })
+
+        // for (let i = 0; i < this.hexGrid.length; i++) {
+        //     for (let j = 0; j <; j++) {
+        //         for (let k = 0; k <; k++) {
+        //            
+        //         }
+        //     }
+        // }
+
+        // return
         const completedLines: BoardHex[][] = []
 
         // Check rows
@@ -131,17 +166,17 @@ export default class HexBoard {
         for (let startCol = 0; startCol < boardSize.w; startCol++) {
             this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
         }
-        for (let startRow = 1; startRow < boardSize.h; startRow++) {
-            this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
-        }
-
-        // Check "\" diagonals: from each cell in the first row and last cell of each row
-        for (let startCol = 0; startCol < boardSize.w; startCol++) {
-            this.checkDiagonalFromPoint(0, startCol, 1, -1, completedLines)
-        }
-        for (let startRow = 1; startRow < boardSize.h; startRow++) {
-            this.checkDiagonalFromPoint(startRow, boardSize.w - 1, 1, -1, completedLines)
-        }
+        // for (let startRow = 0; startRow < boardSize.h; startRow++) {
+        //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
+        // }
+        //
+        // // Check "\" diagonals: from each cell in the first row and last cell of each row
+        // for (let startCol = 0; startCol < boardSize.w; startCol++) {
+        //     this.checkDiagonalFromPoint(0, startCol, 1, -1, completedLines)
+        // }
+        // for (let startRow = 0; startRow < boardSize.h; startRow++) {
+        //     this.checkDiagonalFromPoint(startRow, boardSize.w - 1, 1, -1, completedLines)
+        // }
 
         // Complete all filled lines
         this.completed(completedLines.flat())
@@ -149,20 +184,33 @@ export default class HexBoard {
     }
 
 // Helper method to check diagonal from a starting point
-    checkDiagonalFromPoint(startRow, startCol, rowIncrement, colIncrement, completedLines) {
+    checkDiagonalFromPoint(startRow: number, startCol: number, rowIncrement: number, colIncrement: number, completedLines: BoardHex[][]) {
         let diagonal = []
         let row = startRow
         let col = startCol
+        const c = Color.RandomRGB().color
         while (row < boardSize.h && col >= 0 && col < boardSize.w) {
             const hex = this.hexGrid[row][col]
+            if (hex) {
+                this.highlight(hex, c)
+            } else {
+                // debugger
+                console.log('breaking', {row, col})
+                break
+            }
+            console.log({row, col})
             if (!hex || !hex.isPopulated) {
                 if (diagonal.length > 0) break // Stop if we find a gap after starting the diagonal
             } else {
                 diagonal.push(hex)
             }
+            if (rowIncrement > 0 && row === 4) {
+                colIncrement *= -1
+            }
             row += rowIncrement
             col += colIncrement
         }
+        this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)
         if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)) {
             completedLines.push(diagonal)
         }
@@ -178,6 +226,7 @@ export default class HexBoard {
             row += rowIncrement
             col += colIncrement
         }
+        console.log({length})
         return length
     }
 
