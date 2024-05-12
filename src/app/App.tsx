@@ -49,6 +49,7 @@ function App() {
         <div id="app">
             <div>
                 <div className="settings">
+                    <h4 id="debug"></h4>
                     {settingsControls}
                 </div>
             </div>

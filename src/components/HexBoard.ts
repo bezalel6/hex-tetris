@@ -162,7 +162,7 @@ export default class HexBoard {
             }
         })
 
-        // Check "/" diagonals: from each cell in the first row and first cell of each row
+        // Check "\" diagonals: from each cell in the first row and first cell of each row
         for (let startCol = 0; startCol < boardSize.w; startCol++) {
             this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
         }
@@ -205,7 +205,7 @@ export default class HexBoard {
                 diagonal.push(hex)
             }
             if (rowIncrement > 0 && row === 4) {
-                colIncrement *= -1
+                colIncrement = 0
             }
             row += rowIncrement
             col += colIncrement
