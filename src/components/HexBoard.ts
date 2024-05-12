@@ -171,21 +171,27 @@ export default class HexBoard {
             }
         })
 
-        // // Check "\" diagonals: from each cell in the first row and first cell of each row
-        // for (let startCol = 0; startCol < boardSize.w; startCol++) {
-        //     this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
-        // }
-        // for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
-        //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
-        // }
-
-        // Check "/" diagonals
+        // Check "\" diagonals
         for (let startCol = boardSize.w - 1; startCol >= 0; startCol--) {
             this.checkDiagonalFromPoint(0, startCol, 1, {beforeHalf: 1, afterHalf: 0}, completedLines)
         }
         for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
             this.checkDiagonalFromPoint(startRow, 0, 1, {beforeHalf: 1, afterHalf: 0}, completedLines)
         }
+
+
+        // Check "/" diagonals
+        for (let startCol = this.hexGrid[0].length; startCol >= 0; startCol--) {
+            this.checkDiagonalFromPoint(0, startCol, 1, {beforeHalf: 0, afterHalf: -1}, completedLines)
+        }
+        for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
+            this.checkDiagonalFromPoint(startRow, this.hexGrid[startRow].length - 1, 1, {
+                beforeHalf: 0,
+                afterHalf: -1
+            }, completedLines)
+        }
+
+
         // for (let startRow = 0; startRow < boardSize.h; startRow++) {
         //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
         // }
@@ -218,7 +224,7 @@ export default class HexBoard {
         let col = startCol
         console.log({rowIncrement, colIncrement})
         const c = Color.RandomRGB().color
-        while (row < boardSize.h && col >= 0 && col < boardSize.w) {
+        while (row < boardSize.h && col >= 0 && col < boardSize.w && this.hexGrid[row]) {
             const hex = this.hexGrid[row][col]
             if (hex) {
                 this.highlight(hex, c)
