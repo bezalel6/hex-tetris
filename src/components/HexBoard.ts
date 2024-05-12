@@ -166,6 +166,9 @@ export default class HexBoard {
         for (let startCol = 0; startCol < boardSize.w; startCol++) {
             this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
         }
+        for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
+            this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
+        }
         // for (let startRow = 0; startRow < boardSize.h; startRow++) {
         //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
         // }
