@@ -14,6 +14,15 @@ const hoveredStyle: HexStyle = {
     },
     fill: Color.RandomRGB().color
 }
+type OneOf<T, U> = (T & Partial<U>) | (U & Partial<T>);
+
+type Increment = OneOf<{
+    // before the half height point where the indicis direction change
+    beforeHalf: number;
+}, {
+    //after the half, so, for example, in a board of height 9, afterHalf will be used for line indicies 5, 6, 7, 8
+    afterHalf: number;
+}>
 
 export default class HexBoard {
     scene: HexTetris
@@ -162,12 +171,20 @@ export default class HexBoard {
             }
         })
 
-        // Check "\" diagonals: from each cell in the first row and first cell of each row
-        for (let startCol = 0; startCol < boardSize.w; startCol++) {
-            this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
+        // // Check "\" diagonals: from each cell in the first row and first cell of each row
+        // for (let startCol = 0; startCol < boardSize.w; startCol++) {
+        //     this.checkDiagonalFromPoint(0, startCol, 1, 1, completedLines)
+        // }
+        // for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
+        //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
+        // }
+
+        // Check "/" diagonals
+        for (let startCol = boardSize.w - 1; startCol >= 0; startCol--) {
+            this.checkDiagonalFromPoint(0, startCol, 1, {beforeHalf: 1, afterHalf: 0}, completedLines)
         }
         for (let startRow = 1; startRow < Math.ceil(boardSize.h / 2); startRow++) {
-            this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
+            this.checkDiagonalFromPoint(startRow, 0, 1, {beforeHalf: 1, afterHalf: 0}, completedLines)
         }
         // for (let startRow = 0; startRow < boardSize.h; startRow++) {
         //     this.checkDiagonalFromPoint(startRow, 0, 1, 1, completedLines)
@@ -187,10 +204,19 @@ export default class HexBoard {
     }
 
 // Helper method to check diagonal from a starting point
-    checkDiagonalFromPoint(startRow: number, startCol: number, rowIncrement: number, colIncrement: number, completedLines: BoardHex[][]) {
+    checkDiagonalFromPoint(startRow: number, startCol: number, _rowIncrement: number | Increment, _colIncrement: Increment | number, completedLines: BoardHex[][]) {
+
+        function parse(n: number | Increment): Required<Increment> {
+            if (typeof n === 'number') return {afterHalf: n, beforeHalf: n}
+            return {beforeHalf: n.beforeHalf ?? n.afterHalf, afterHalf: n.afterHalf ?? n.beforeHalf}
+        }
+
+        const rowIncrement = parse(_rowIncrement)
+        const colIncrement = parse(_colIncrement)
         let diagonal = []
         let row = startRow
         let col = startCol
+        console.log({rowIncrement, colIncrement})
         const c = Color.RandomRGB().color
         while (row < boardSize.h && col >= 0 && col < boardSize.w) {
             const hex = this.hexGrid[row][col]
@@ -198,7 +224,7 @@ export default class HexBoard {
                 this.highlight(hex, c)
             } else {
                 // debugger
-                console.log('breaking', {row, col})
+                // console.log('breaking', {row, col})
                 break
             }
             console.log({row, col})
@@ -207,23 +233,20 @@ export default class HexBoard {
             } else {
                 diagonal.push(hex)
             }
-            if (rowIncrement > 0 && row === 4) {
-                colIncrement = 0
-            }
-            row += rowIncrement
-            col += colIncrement
+            row += row > 4 ? rowIncrement.afterHalf : rowIncrement.beforeHalf
+            col += row > 4 ? colIncrement.afterHalf : colIncrement.beforeHalf
         }
-        this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)
-        if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement)) {
+        if (diagonal.length > 0 && diagonal.length == this.calculateDiagonalLength(startRow, startCol, rowIncrement.beforeHalf, colIncrement.beforeHalf)) {
             completedLines.push(diagonal)
         }
     }
 
 // Helper method to calculate the length of a diagonal
-    calculateDiagonalLength(startRow, startCol, rowIncrement, colIncrement) {
+    calculateDiagonalLength(startRow: number, startCol: number, rowIncrement: number, colIncrement: number) {
         let length = 0
         let row = startRow
         let col = startCol
+        if (!rowIncrement && !colIncrement) throw new Error('Infinite loop detected')
         while (row < boardSize.h && col >= 0 && col < boardSize.w) {
             length++
             row += rowIncrement
