@@ -26,10 +26,11 @@ type Increment = OneOf<{
 
 export default class HexBoard {
     scene: HexTetris
-    shape: Shape
+    boardShape: Shape
     hexGrid: BoardHex[][]
     resetHex: RenderableHex[] = []
     lastHash = ''
+    onGameTick: () => void
     // Define an array of hexadecimal color values for the rainbow colors in decimal form
     rainbowColors: number[] = [
         0xE6E6FA, // Lavender (Lighter Violet)
@@ -60,12 +61,16 @@ export default class HexBoard {
         const {width, height} = scene.sys.game.canvas
         const center = {x: width / 2 - boardWidth / 2, y: height / 2}
 
-        this.shape = new Shape(scene, {hexes: this.hexGrid.flat()}, false, center)
+        this.boardShape = new Shape(scene, {hexes: this.hexGrid.flat()}, false, center)
         this.syncBoardIndicies(true)
 
         this.checkCompleteLines()
         this.getCurrentHash(true)
         console.log(this.hexGrid)
+    }
+
+    tick() {
+        if (this.onGameTick) this.onGameTick()
     }
 
     getCurrentHash(shouldUpdateHash = true) {
@@ -86,8 +91,8 @@ export default class HexBoard {
         this.hexGrid.forEach((row, rIndex) => {
             row.forEach((hex, cIndex) => {
                 hex.actualBoardCoords = {row: rIndex, col: cIndex}
-                if (this.shape || shouldShapeBeDefined)
-                    this.find(hex).data.set(hex)
+                if (this.boardShape || shouldShapeBeDefined)
+                    this.find(hex)?.data.set(hex)
             })
         })
     }
@@ -121,10 +126,11 @@ export default class HexBoard {
     }
 
     find(hex: BoardHex): RenderableHex {
-        return this.shape.group.getChildren().find(h => {
-            const {row, col} = (h.data.values as BoardHex).actualBoardCoords
-            return hex.actualBoardCoords.row == row && hex.actualBoardCoords.col == col
-        })
+        // return this.boardShape.group.getChildren().find(h => {
+        //     const {row, col} = (h.data.values as BoardHex).actualBoardCoords
+        //     return hex.actualBoardCoords.row == row && hex.actualBoardCoords.col == col
+        // })
+        return null
     }
 
     completed(hexes: BoardHex[]) {
@@ -147,21 +153,7 @@ export default class HexBoard {
             console.log('hash match')
             return
         }
-        // this.hexGrid.forEach((row, i) => {
-        //     row.forEach(r => {
-        //         this.highlight(r, this.rainbowColors[i])
-        //     })
-        // })
 
-        // for (let i = 0; i < this.hexGrid.length; i++) {
-        //     for (let j = 0; j <; j++) {
-        //         for (let k = 0; k <; k++) {
-        //            
-        //         }
-        //     }
-        // }
-
-        // return
         const completedLines: BoardHex[][] = []
 
         // Check rows
@@ -194,6 +186,7 @@ export default class HexBoard {
         // Complete all filled lines
         this.completed(completedLines.flat())
         this.lastHash = currentHash
+        this.tick()
     }
 
 // Helper method to check diagonal from a starting point
@@ -212,8 +205,6 @@ export default class HexBoard {
         while (row < boardSize.h && col >= 0 && col < boardSize.w && this.hexGrid[row]) {
             const hex = this.hexGrid[row][col]
             if (!hex) {
-                // debugger
-                // console.log('breaking', {row, col})
                 break
             }
             if (!hex || !hex.isPopulated) {
@@ -229,7 +220,7 @@ export default class HexBoard {
         }
     }
 
-// Helper method to calculate the length of a diagonal
+    // Helper method to calculate the length of a diagonal
     calculateDiagonalLength(startRow: number, startCol: number, rowIncrement: Increment, colIncrement: Increment) {
         let length = 0
         let row = startRow
@@ -282,14 +273,14 @@ export default class HexBoard {
         })
         this.resetHex.length = 0
 
-        if (shape.group.getChildren().length !== intersections.length) return false
-        if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
-
-        intersections.forEach(t => {
-            const hex = this.shape.findHexChild(t.boardShapeHex)
-            renderHex(hex, hoveredStyle)
-            this.resetHex.push(hex)
-        })
+        // if (shape.group.getChildren().length !== intersections.length) return false
+        // if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
+        //
+        // intersections.forEach(t => {
+        //     const hex = this.boardShape.findHexChild(t.boardShapeHex)
+        //     renderHex(hex, hoveredStyle)
+        //     this.resetHex.push(hex)
+        // })
 
         return true
     }
@@ -302,17 +293,39 @@ export default class HexBoard {
     tryFittingShape(shape: Shape, intersections: Intersection[]): boolean {
         this.resetHex.length = 0
 
-        if (shape.group.getChildren().length !== intersections.length) return false
-
-        if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
-
-        intersections.forEach(t => {
-            const hex = this.shape.findHexChild(t.boardShapeHex)
-            t.boardShapeHex.isPopulated = true
-            this.set({...t.boardShapeHex})
-            renderHex(hex, t.intersectingShapeHex.style)
-        })
+        // if (shape.group.getChildren().length !== intersections.length) return false
+        //
+        // if (intersections.find(t => t.boardShapeHex.isPopulated)) return false
+        //
+        // intersections.forEach(t => {
+        //     const hex = this.boardShape.findHexChild(t.boardShapeHex)
+        //     t.boardShapeHex.isPopulated = true
+        //     this.set({...t.boardShapeHex})
+        //     renderHex(hex, t.intersectingShapeHex.style)
+        // })
         this.checkCompleteLines()
+        return true
+    }
+
+    checkGameOver(shapes: Shape[]): boolean {
+        for (let x = 0; x < this.hexGrid.length; x++) {
+            for (let y = 0; y < this.hexGrid[x].length; y++) {
+                if (!this.hexGrid[x][y].isPopulated) {
+                    for (const shape of shapes) {
+                        if (this.canPlaceShape(shape, x, y)) {
+                            return false // There is at least one place where a shape can fit
+                        }
+                    }
+                }
+            }
+        }
+        return true // No shapes can fit
+    }
+
+    canPlaceShape(shape: Shape, boardX: number, boardY: number): boolean {
+        for (const hex of shape.data.hexes) {
+
+        }
         return true
     }
 }

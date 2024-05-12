@@ -1,8 +1,6 @@
-import {createHex, Hex, hexPoints, HexStyle, RenderableHex, renderHex} from '@/hex-data/hex'
-import {HexTetris} from '@/game/scenes/HexTetris'
-import {HexSettings} from '@/hex-data/settings'
-import HexBoard, {BoardHex} from '@/components/HexBoard'
-import Group = Phaser.GameObjects.Group
+import {Hex} from '@/hex-data/hex'
+import {defaultSettings, HexSettings} from '@/hex-data/settings'
+import {BoardHex} from '@/components/HexBoard'
 import Color = Phaser.Display.Color
 
 export type ShapeSettings = {}
@@ -119,195 +117,83 @@ function flipShapes(shapes) {
     return flippedShapes
 }
 
-
 export default class Shape {
-    constPoints = hexPoints()
-    constRadius = this.calculateStaticRadius() // Store the computed radius
-    scene: HexTetris
+    scene: Phaser.Scene
+    graphics: Phaser.GameObjects.Graphics
     data: ShapeData
     hexesSettings?: GlobalShapeHexSettings
-    group: Omit<Group, 'getChildren'> & { getChildren: () => RenderableHex[] }
     originalPositions: { x: number, y: number }[]
-    onDestroy?: () => void  // Optional onDestroy callback property
-    hash = {
-        lastChecked: {x: 0, y: 0},
-        intersections: new Array<Intersection>()
-    }
+    onDestroy?: () => void
 
-    constructor(scene: HexTetris, data: ShapeData, enableDrag = true, globalShapeSettings?: GlobalShapeHexSettings) {
+    constructor(scene: Phaser.Scene, data: ShapeData, enableDrag = true, globalShapeSettings?: GlobalShapeHexSettings) {
         this.scene = scene
-        this.hexesSettings = globalShapeSettings
         this.data = data
-        this.group = this.scene.add.group() as any
+        this.hexesSettings = globalShapeSettings
+        this.graphics = this.scene.add.graphics({x: globalShapeSettings?.x || 0, y: globalShapeSettings?.y || 0})
         this.originalPositions = []
-        const settings = {...scene.getSettings(), ...(data.settings || {})}
-        const hexSettingsObj = this.hexesSettings || {}
 
-        data.hexes.map(hex => {
-                Object.keys(hexSettingsObj).forEach(key => {
-                    if (hex[key] === undefined) {
-                        hex[key] = settings[key]
-                    }
-                })
-                return createHex({scene, settings, hex})
-            }
-        )
-            .forEach((hex, index) => {
-                this.group.add(hex)
-                this.originalPositions.push({x: hex.x, y: hex.y})  // Store initial positions
-            })
-
-
-        if (globalShapeSettings && globalShapeSettings.x && globalShapeSettings.y) {
-            this.group.incXY(globalShapeSettings.x, globalShapeSettings.y)
-            this.originalPositions.forEach(pos => {
-                pos.x += globalShapeSettings.x
-                pos.y += globalShapeSettings.y
-
-            })
+        this.drawShape()
+        if (enableDrag) {
+            this.setupDrag()
         }
-        if (!enableDrag)
-            this.group.getChildren().forEach(hex => {
-                hex.on('pointermove', () => {
-                    const {row, col} = hex.data.values.actualBoardCoords
-                    document.getElementById('debug').innerText = `row: ${row}, col: ${col}`
-                })
-            })
-        if (enableDrag)
-            this.dragSetup()
     }
 
-    calculateStaticRadius(): number {
-        // Pre-calculate radius using constPoints just once
-        return Math.sqrt((this.constPoints)[0].x ** 2 + (this.constPoints)[0].y ** 2) / 2
-    }
-
-    distance(x1: number, y1: number, x2: number, y2: number): number {
-        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-    }
-
-    checkIntersection(shape: Shape, board: HexBoard): Intersection[] {
-        const intersections: Intersection[] = []
-        const {x, y} = shape.group.getChildren()[0]
-        const threshold = 20
-        if (Math.abs(this.hash.lastChecked.x - x) <= threshold && Math.abs(this.hash.lastChecked.y - y) <= threshold) {
-            console.log('hash match')
-            return this.hash.intersections
+    calculateHexPoints(size: number, spacing: number): Phaser.Geom.Point[] {
+        const points: Phaser.Geom.Point[] = []
+        for (let i = 0; i < 6; i++) {
+            const angle = Math.PI / 3 * i - Math.PI / 6
+            const x = Math.cos(angle) * (size + spacing / 2)
+            const y = Math.sin(angle) * (size + spacing / 2)
+            points.push(new Phaser.Geom.Point(x, y))
         }
-        shape.group.getChildren().forEach(child1 => {
-            const center1 = {x: child1.x, y: child1.y}
+        return points
+    }
 
-            board.shape.group.getChildren().forEach(child2 => {
-                const center2 = {x: child2.x, y: child2.y}
+    drawShape() {
+        const hexSettings = this.data.settings || defaultSettings()
+        const {spacing, size, xSpacingT, ySpacingT} = hexSettings
 
-                if (this.distance(center1.x, center1.y, center2.x, center2.y) < this.constRadius + this.constRadius) {
-                    intersections.push({
-                        intersectingShapeHex: child1.data.values as Hex,
-                        boardShapeHex: child2.data.values as BoardHex,
-                        area: Math.PI * Math.pow((this.constRadius + this.constRadius) / 2, 2) // Approximate overlap area as circle area
-                    })
-                }
+        let genPoints = []
+
+        this.data.hexes.forEach(hex => {
+            const x = hex.col * (size * xSpacingT + spacing)
+            const y = hex.row * (size * ySpacingT + spacing)
+
+            const points = this.calculateHexPoints(size, spacing)
+            this.graphics.fillStyle(Color.RandomRGB().color)
+            this.graphics.beginPath()
+            this.graphics.moveTo(points[0].x + x, points[0].y + y)
+
+            points.forEach(point => {
+                this.graphics.lineTo(point.x + x, point.y + y)
+                genPoints.push({x: point.x + x, y: point.y + y})
             })
+
+            this.graphics.closePath()
+            this.graphics.fillPath()
+
+            this.originalPositions.push({x, y})
         })
-        this.hash = {
-            intersections,
-            lastChecked: {x, y}
-        }
-        return intersections
+
+        // Set the entire graphics object as interactive
+        this.graphics.setInteractive(new Phaser.Geom.Polygon(genPoints), Phaser.Geom.Polygon.Contains)
     }
 
-    restoreStyle() {
-        this.group.getChildren().forEach(
-            child => {
-                this.updateHexVisual(child, child.originalStyle)
-            }
-        )
-    }
+    setupDrag() {
+        this.scene.input.setDraggable(this.graphics)
 
-    updateHexVisual(hex: Hex | RenderableHex, newStyle: HexStyle): void {
-        const hexagon = 'points' in hex ? hex : this.findHexChild(hex)
-        if (hexagon) {
-            renderHex(hexagon, newStyle)
-        }
-    }
+        this.graphics.on('drag', (pointer, dragX, dragY) => {
+            this.graphics.x = dragX
+            this.graphics.y = dragY
+        })
 
-    findHexChild(searchFor: Hex) {
-        return this.group.getChildren().find((hex) => hex.data.values === searchFor)
-    }
-
-    dragSetup() {
-        let dragStartX = 0
-        let dragStartY = 0
-
-
-        const pointerMoveCallback = (pointer) => {
-            if (pointer.isDown) {
-
-                const dx = pointer.x - dragStartX
-                const dy = pointer.y - dragStartY
-                dragStartX = pointer.x
-                dragStartY = pointer.y
-                this.group.incXY(dx, dy)
-                // this.group.getChildren().forEach((child) => {
-                //     child.x += dx
-                //     child.y += dy
-                // })
-                const intersection = this.checkIntersection(this, this.scene.board)
-                this.scene.board.shapeIntersectingHover(this, intersection)
-            } else {
-                this.scene.input.removeListener('pointermove', pointerMoveCallback)
-            }
-        }
-
-
-        this.group.getChildren().forEach((hex, index) => {
-            hex.on('pointerdown', (pointer) => {
-                dragStartX = pointer.x
-                dragStartY = pointer.y
-                this.scene.input.on('pointermove', pointerMoveCallback)
-            })
-
-            hex.on('pointerup', e => {
-                this.scene.input.removeListener('pointermove', pointerMoveCallback)
-                if (this.group.getChildren().length > 4) {
-                    console.log('board itself')
-                } else {
-                    const intersection = this.checkIntersection(this, this.scene.board)
-                    if (this.scene.board.tryFittingShape(this, intersection)) {
-                        this.destroy()
-                        return
-                    }
-                }
-                this.group.getChildren().forEach((child, index) => {
-                    this.scene.tweens.add({
-                        targets: child,
-                        x: this.originalPositions[index].x,
-                        y: this.originalPositions[index].y,
-                        ease: 'Power1',
-                        duration: 200
-                    })
-                })
-            })
+        this.graphics.on('dragend', () => {
+            // Add logic to handle shape drop
         })
     }
 
     destroy() {
-        // const duration = 300
-        // this.group.getChildren().forEach((child, index) => {
-        //     this.scene.tweens.add({
-        //         targets: child,
-        //         scaleX: 0,
-        //         scaleY: 0,
-        //         alpha: 0,
-        //         ease: 'Expo.easeIn',
-        //         duration: duration
-        //     })
-        // })
-        //
-        // setTimeout(() => {
-        this.group.destroy(true, true)
-        if (this.onDestroy) {this.onDestroy()}
-        // }, duration)
+        this.graphics.destroy()
+        if (this.onDestroy) this.onDestroy()
     }
 }
-

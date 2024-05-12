@@ -9,6 +9,7 @@ const numShapes = 3
 
 export class HexTetris extends Scene {
     board: HexBoard
+    shapes = new Array<Shape>()
     private settings: HexSettings = defaultSettings()
 
     constructor() {
@@ -31,8 +32,10 @@ export class HexTetris extends Scene {
         const newShape = new Shape(this, shapeData, true, {x: x, y: y})
         newShape.onDestroy = () => {
             console.log('Shape destroyed. Creating a new one.')
+            this.shapes = this.shapes.filter(s => s !== newShape)
             this.createShape(x, y)
         }
+        this.shapes.push(newShape)
         return newShape
     }
 
@@ -43,7 +46,11 @@ export class HexTetris extends Scene {
 
         // Create the board
         this.board = new HexBoard(this)
-
+        this.board.onGameTick = () => {
+            if (this.board.checkGameOver(this.shapes)) {
+                alert('Game over')
+            }
+        }
         // Calculate vertical spacing for shapes
         const spacingY = height / (numShapes + 1)
 
