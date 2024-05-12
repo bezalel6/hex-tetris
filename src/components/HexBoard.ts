@@ -234,14 +234,11 @@ export default class HexBoard {
         let length = 0
         let row = startRow
         let col = startCol
-        while (row < boardSize.h && col >= 0 && col < boardSize.w) {
+        while (row < boardSize.h && col >= 0 && col < this.hexGrid[row].length) {
             length++
             row += row > 4 ? rowIncrement.afterHalf : rowIncrement.beforeHalf
             col += row > 4 ? colIncrement.afterHalf : colIncrement.beforeHalf
-            // row += rowIncrement
-            // col += colIncrement
         }
-        console.log({length})
         return length
     }
 
